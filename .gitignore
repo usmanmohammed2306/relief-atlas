@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.env*
+.relief-data/
+.DS_Store

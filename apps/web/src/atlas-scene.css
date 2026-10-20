@@ -1,0 +1,92 @@
+.atlas-scene {
+  --scene-ink: #e4ebdc;
+  --scene-muted: #bacbbb;
+  --scene-line: #405745;
+  --scene-chip: #20372b;
+  position: relative; isolation: isolate; width: 100%; min-width: 0;
+  color: var(--scene-ink); overflow: hidden;
+}
+.atlas-scene::before {
+  content: ''; position: absolute; inset: 8% 5% 27%; z-index: -1;
+  border-radius: 50%; background: radial-gradient(ellipse, #d9b97912, transparent 64%);
+  pointer-events: none;
+}
+.atlas-scene .atlas-scene-corner {
+  position: absolute; top: 18px; left: 20px; display: flex; align-items: center;
+  gap: 7px; font-size: 9px; line-height: 1.4; letter-spacing: .1em;
+  color: var(--scene-muted); pointer-events: none; z-index: 2;
+}
+.atlas-scene .atlas-scene-corner > span { width: 4px; height: 4px; border-radius: 50%; background: #d7c19a; }
+.atlas-scene .atlas-scene-corner b { border-left: 1px solid var(--scene-line); padding-left: 8px; font-size: 8px; font-weight: 400; letter-spacing: .06em; }
+.atlas-scene .atlas-scene-stage {
+  position: relative; height: clamp(280px, 26vw, 345px); width: 100%;
+  cursor: grab; touch-action: pan-y; outline-offset: -5px; border-radius: 22px;
+  -webkit-tap-highlight-color: transparent;
+}
+.atlas-scene .atlas-scene-stage:focus-visible { outline: 2px solid var(--focus); }
+.atlas-scene .atlas-scene-stage.is-dragging { cursor: grabbing; }
+.atlas-scene .atlas-scene-stage canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
+.atlas-scene .atlas-scene-stage canvas[hidden] { display: none; }
+.atlas-scene .atlas-scene-drag-hint {
+  position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 6px; color: var(--scene-muted);
+  font-size: 10px; white-space: nowrap; pointer-events: none;
+  padding: 4px 8px; border-radius: 5px; background: var(--scene-chip);
+}
+.atlas-scene .atlas-scene-focus { display: flex; justify-content: center; gap: 7px; padding: 4px 16px 0; }
+.atlas-scene .atlas-scene-focus button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 1; max-width: 115px;
+  min-height: 38px; padding: 7px 12px; color: var(--scene-ink); background: var(--scene-chip);
+  border: 1px solid var(--scene-line); border-radius: 9px; cursor: pointer;
+  font: 500 11px/1.4 var(--sans);
+}
+.atlas-scene .atlas-scene-focus button:hover { border-color: #bca77e; }
+.atlas-scene .atlas-scene-focus button[aria-pressed=true] { background: #4a422a; border-color: #bfa575; color: #fff0cb; }
+.atlas-scene .atlas-scene-focus button:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.atlas-scene .atlas-scene-focus-copy { text-align: center; min-height: 35px; padding: 9px 20px 4px; margin: 0; color: var(--scene-muted); font-size: 11px; line-height: 1.6; }
+.atlas-scene .atlas-scene-footer {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  gap: 4px 8px; margin: 3px 20px 0; padding: 5px 0; border-top: 1px solid var(--scene-line);
+}
+.atlas-scene .atlas-scene-controls { display: flex; align-items: center; gap: 3px; margin-left: auto; }
+.atlas-scene .atlas-scene-static { color: var(--scene-muted); font-size: 10px; }
+.atlas-scene .atlas-scene-controls button, .atlas-scene .scene-home-control {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-height: 34px; min-width: 34px; padding: 5px 7px; border: 1px solid transparent;
+  border-radius: 7px; background: transparent; box-shadow: none; color: var(--scene-ink);
+  font-size: 10px; line-height: 1.4; cursor: pointer;
+}
+.atlas-scene .atlas-scene-controls button:hover, .atlas-scene .scene-home-control:hover { border-color: var(--scene-line); background: var(--scene-chip); }
+.atlas-scene .atlas-scene-controls button:focus-visible, .atlas-scene .scene-home-control:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.atlas-scene .scene-home-control[aria-pressed=true] { border-color: #bca77e; }
+.atlas-scene .atlas-scene-caption { margin: 0; padding: 18px 18px 0; text-align: center; color: var(--scene-muted); font-size: 10px; line-height: 1.6; }
+.atlas-scene .atlas-scene-fallback-note { margin: 0; padding: 0 18px 8px; color: var(--scene-muted); font-size: 11px; line-height: 1.6; text-align: center; }
+.atlas-scene .atlas-scene-fallback { position: absolute; inset: 13% 14% 12%; transform-style: preserve-3d; pointer-events: none; }
+.atlas-scene .fallback-home { position: absolute; width: 49%; height: 53%; left: 26%; top: 26%; z-index: 2; border: 1px solid #c1d6b9; border-radius: 2px; background: linear-gradient(120deg,#b6bc9dcc,#657f6dd9); box-shadow: 15px 7px 0 #3e6253, inset 0 0 28px #fae1a034; }
+.atlas-scene .fallback-roof { position: absolute; width: 79%; aspect-ratio: 1; left: 9%; top: -64%; background: linear-gradient(135deg,#bfcbb3,#5f877d 70%); transform: rotate(45deg) scale(.87); clip-path: polygon(0 0,100% 0,0 100%); border: 1px solid #d0dfc2; }
+.atlas-scene .fallback-window { position: absolute; width: 36%; height: 37%; left: 10%; top: 24%; background: linear-gradient(135deg,#ffeece,#d8a773); border: 4px solid #385648; box-shadow: 0 0 19px #edd7a53d; }
+.atlas-scene .fallback-door { position: absolute; width: 27%; height: 62%; right: 12%; bottom: 0; background: #355244; border: 1px solid #8fa98d; }
+.atlas-scene .fallback-door::after { content: ''; position: absolute; width: 3px; height: 3px; border-radius: 50%; right: 4px; top: 50%; background: #f4d791; }
+.atlas-scene .fallback-plinth { position: absolute; width: 94%; height: 34%; left: 3%; bottom: 0; border-radius: 50%; background: linear-gradient(#748779,#273f33); box-shadow: 0 6px 0 #183126, 0 7px 0 #d7e3ba, 0 18px 19px #06130965; }
+.atlas-scene .fallback-task { position: absolute; width: 41px; height: 41px; display: grid; place-items: center; z-index: 3; color: #e8e8cb; background: #2d4a3a; border: 1px solid #9bb697; border-radius: 13px; box-shadow: 0 8px 16px #09190f30; }
+.atlas-scene .fallback-task svg { width: 21px; height: 21px; }
+.atlas-scene .fallback-task.meal { left: 0; bottom: 12%; }
+.atlas-scene .fallback-task.visit { right: -2%; top: 32%; }
+.atlas-scene .fallback-task.ride { right: 15%; bottom: -1%; }
+.atlas-scene .fallback-task.selected { background: #675239; border-color: #f3d49c; color: #fff0cb; box-shadow: 0 0 0 4px #cba65f20; }
+.atlas-scene .is-explored .fallback-roof { translate: 0 -28%; }
+.atlas-scene .atlas-scene-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+[data-theme=daylight] .atlas-scene { --scene-ink: #304e3c; --scene-muted: #506649; --scene-line: #c3cfb8; --scene-chip: #edf0e2; }
+[data-theme=daylight] .atlas-scene .atlas-scene-caption { color: #40573b; }
+[data-theme=daylight] .atlas-scene .atlas-scene-focus button[aria-pressed=true] { background: #f2e5c7; border-color: #957343; color: #5b461e; }
+@media(max-width:560px) {
+  .atlas-scene .atlas-scene-stage { height: 255px; }
+  .atlas-scene .atlas-scene-drag-hint { display: none; }
+  .atlas-scene .atlas-scene-corner { top: 13px; left: 15px; }
+  .atlas-scene .atlas-scene-corner b { display: none; }
+  .atlas-scene .atlas-scene-focus { padding-inline: 20px; }
+  .atlas-scene .atlas-scene-focus-copy { min-height: 46px; padding-block: 8px 5px; font-size: 10px; }
+  .atlas-scene .atlas-scene-controls button span { display: none; }
+  .atlas-scene .atlas-scene-footer { margin-inline: 20px; }
+  .atlas-scene .atlas-scene-caption { font-size: 10px; padding-top: 10px; }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "relief-atlas",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @relief/api --filter @relief/web dev",
+    "build": "pnpm --filter @relief/web build && pnpm --filter @relief/api build",
+    "start": "pnpm --filter @relief/api start"
+  }
+}

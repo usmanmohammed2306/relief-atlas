@@ -35,6 +35,14 @@ For development, use `DEMO_MODE=true RELIEF_PROPOSER=deterministic pnpm dev`. Th
 5. Switch to Sam. Accept one task and report completion; decline the other.
 6. Return to Alex. Confirm the reported task and inspect the uncovered task's recovery draft and timeline.
 
+## What needs you next
+
+An organizer should not have to inspect every task to find the next useful step. The read-only **Next steps** inbox brings record issues, uncovered tasks, disputed completion, helper reports and approaching deadlines into one explainable list. It shows three items first, with an explicit option to see the rest.
+
+Each item explains why it appears and opens that exact request and its timeline, even if a filter was hiding it. A task accepted before its deadline is not flagged prematurely. An overdue accepted task prompts a progress check, not an accusation that the helper failed. Sent or simulated offers never count as acceptance.
+
+Suggestions use deterministic rules and a timestamped board snapshot, not AI predictions. Inspecting an item sends nothing, changes no task status and never bypasses approval. This inbox is organizer-only; helpers retain their scoped offers view. No new service or paid dependency is required.
+
 ## How it works
 
 React and TypeScript provide the interface, with optional 3D illustrations, reduced-motion support and a lightweight graphics fallback. Fastify serves the API, built web app and a real Streamable HTTP MCP endpoint at `/mcp`. The Alexa-style entrance is a custom simulator, not a live Alexa+ integration.

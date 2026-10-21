@@ -12,6 +12,7 @@ import { statusLabels as label, offerLabels as offerLabel, type Board, type Requ
 import './workspace.css';
 import { AtlasScene } from './AtlasScene.js';
 import './cinematic.css';
+import { NextSteps } from './NextSteps.js';
 
 type Circle={id:string;name:string;care_recipient_name:string;role:'organizer'|'helper';status:string};
 type Me={actor:{id:string;email:string;displayName:string};circles:Circle[];pending:Circle[]};
@@ -162,6 +163,7 @@ function App(){
             ['confirmed_done','Organizer confirmed','green',CheckCircle2],['seeking','Seeking help','amber',Clock3],
             ['attention','Needs attention','red',Bell]
           ] as const).map(([status,title,color,Icon])=>{const count=board?.requests.filter(request=>status==='attention'?['uncovered','disputed'].includes(request.status):request.status===status).length||0;return <button className="summary-card" key={status} aria-label={`${title}: ${count}`} aria-pressed={requestFilter===status} onClick={()=>focusRequests(requestFilter===status?'all':status)}><span className={`summary-icon ${color}`}><Icon size={17}/></span><span className="summary-number">{count}</span><span className="summary-label">{title}</span><ArrowRight className="summary-arrow" size={14}/></button>;})}</div>
+          {role==='organizer'&&board&&boardFetchedAt&&<NextSteps key={`${active.id}:${me!.actor.id}`} board={board} fetchedAt={boardFetchedAt} onInspect={inspectRequest}/>}
           {role==='organizer'&&drafts.length>0&&<section className="saved-drafts" aria-label="Saved drafts"><h2>Pick up a saved draft</h2><p>Nothing has been approved or sent from these drafts. Your latest 20 unexpired drafts appear here.</p>{drafts.map(draft=><article key={draft.id}><div><strong>{draft.titles.join(' · ')}</strong><small>{draft.recoverySourceId?'Recovery draft · ':''}{draft.titles.length} {draft.titles.length===1?'task':'tasks'} · review expires <time dateTime={draft.expiresAt}>{dateText(draft.expiresAt)}</time></small></div><button className="secondary" onClick={()=>{history.replaceState({},'',`?plan=${encodeURIComponent(draft.id)}`);setTab('ask');}}>Resume draft <ArrowRight size={16}/></button></article>)}</section>}
           {board?.notifications.length?<div className="notifications"><div className="section-title"><Bell size={17}/> Updates</div>{board.notifications.slice(0,3).map(n=><div key={n.id} className="notification"><span className="notification-dot"/><span>{n.message}</span><small>{dateText(n.created_at)}</small></div>)}</div>:null}
           <div className="section-head coverage-heading"><div><span className="eyebrow">COMMITMENTS, NOT ASSUMPTIONS</span><h2 id="coverage-heading" tabIndex={-1}>Your requests</h2></div><label className="request-search"><Search size={16}/><input aria-label="Search requests" type="search" placeholder="Find a request" value={query} onChange={event=>setQuery(event.target.value)}/></label></div>

@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowRight, Check, ChevronRight, FlaskConical, LockKeyho
 import './atlas.css';
 import './planner-focus.css';
 import { deadlineInstant } from './deadline.js';
+import { ReviewChanges } from './ReviewChanges.js';
 
 type Task={type:'meal'|'visit'|'ride';title:string;brief:string;dueAt:string|null;recipientIds:string[];location:string;instructions:string;warnings:string[]};
 type Outreach={recipients:{email:string;wave:number}[];subject:string|null;text:string|null;html:string|null};
@@ -134,6 +135,7 @@ export function AtlasPlanner({householdId,people,demo,deliveryMode,initialPlanId
         {!task.dueAt&&<div className="atlas-warning">Exact time missing. Atlas will not invent one.</div>}
         {plan.outreach[index]&&!dirty&&<details className="outreach-preview" open><summary>Exact outreach message and waves <ChevronRight size={15}/></summary><p>{plan.outreach[index].recipients.map(item=>`${item.email} (wave ${item.wave})`).join(', ')||'No recipients'}</p><strong>{plan.outreach[index].subject||'Set a due time to preview the message'}</strong>{plan.outreach[index].text&&<p className="message-preview">{plan.outreach[index].text}</p>}<small>Wave 1 queues immediately after approval. Wave 2 queues 15 minutes later. Delivery and acceptance are separate states.</small></details>}
       </article>)}
+      {dirty&&<ReviewChanges saved={plan.tasks} proposed={tasks} digest={plan.digest} people={people}/>}
       <div className="atlas-save"><span><LockKeyhole size={16}/> {dirty?'Unsaved edits cannot be approved. Save before leaving this page.':'Saved. You can return from Today or refresh this page.'}</span><button className="secondary" disabled={busy||!dirty} onClick={()=>void save()}><Save size={16}/> Save exact review</button></div>
       <div className="rehearsal-panel"><div><span className="eyebrow">REHEARSE A FAILURE</span><h3>What if a helper declines?</h3><p>Compare the saved draft with one hypothetical decline, using a factual snapshot of current preferences and contact windows.</p></div><div className="rehearsal-controls"><select aria-label="Helper to remove in rehearsal" value={excluded} onChange={event=>{setExcluded(event.target.value);invalidateRehearsal();}}><option value="">Choose a helper</option>{selectedHelpers.map(person=><option value={person.id} key={person.id}>{person.display_name||person.email}</option>)}</select><button className="secondary" disabled={!excluded||busy||dirty} onClick={()=>void rehearse()}><FlaskConical size={16}/> Rehearse decline</button></div>
         <p className="rehearsal-boundary">No helper has accepted these drafts. Rehearsal changes no plans, creates no offers and contacts nobody.</p>

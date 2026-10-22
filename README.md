@@ -43,6 +43,14 @@ Each item explains why it appears and opens that exact request and its timeline,
 
 Suggestions use deterministic rules and a timestamped board snapshot, not AI predictions. Inspecting an item sends nothing, changes no task status and never bypasses approval. This inbox is organizer-only; helpers retain their scoped offers view. No new service or paid dependency is required.
 
+## See what changed before you save
+
+A small edit can change the plan substantially. **Review changes** compares your unsaved edits with the saved draft, field by field: title, briefing, task type, exact deadline, helper order and private details. Saved and proposed values appear side by side, with explicit timezone offsets and original timestamp values for deadlines. Private before-and-after values are collapsed until you open them.
+
+Helper order matters: the first two helpers enter wave 1; later helpers enter wave 2. Moving someone can change their wave even if nobody is added or removed. The comparison makes that visible without claiming anyone is eligible or has accepted.
+
+Unsaved edits still block approval. Saving refreshes the fingerprint and exact outreach preview; it does not approve the plan or send anything. The comparison is local to the current edit session, not a permanent version history or a substitute for server-side authorization. It uses no additional service or model.
+
 ## How it works
 
 React and TypeScript provide the interface, with optional 3D illustrations, reduced-motion support and a lightweight graphics fallback. Fastify serves the API, built web app and a real Streamable HTTP MCP endpoint at `/mcp`. The Alexa-style entrance is a custom simulator, not a live Alexa+ integration.

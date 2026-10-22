@@ -86,9 +86,14 @@ export async function migrate(db: Database): Promise<void> {
 
 export async function prepareSchema(db:Database):Promise<void> {
   if(process.env.NODE_ENV!=='production'||process.env.DEMO_MODE==='true'){await migrate(db);return;}
-  // Runtime credentials cannot perform DDL. Deployment runs the bootstrap task first.
-  const found=await db.query('SELECT name FROM schema_migrations');
+  // Runtime credentials only verify the ledger. Deployment runs the bootstrap task first.
+  const found=await db.query('SELECT name,checksum FROM schema_migrations');
   if(migrations.some(name=>!found.rows.some(row=>row.name===name)))throw new Error('Database schema is behind this release. Run the administrator bootstrap task first.');
+  for(const name of migrations){
+    const sql=await readFile(new URL(`../sql/${name}`,import.meta.url),'utf8');
+    const checksum=createHash('sha256').update(sql).digest('hex');
+    if(found.rows.find(row=>row.name===name)?.checksum!==checksum)throw new Error(`Applied migration changed: ${name}. Verify the release and add a new migration instead.`);
+  }
 }
 
 export async function seedDemo(db: Database): Promise<void> {

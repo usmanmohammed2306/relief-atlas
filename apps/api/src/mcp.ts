@@ -9,7 +9,9 @@ import { observe, planReceipt, type Observer } from './telemetry.js';
 const asText=(value:unknown)=>({content:[{type:'text' as const,text:JSON.stringify(value)}]});
 
 export function createMcpServer(service:ReliefService,atlas:AtlasService,actor:Actor,observer?:Observer,requestId?:string):McpServer {
-  const mcp=new McpServer({name:'relief-atlas',version:'1.0.0'});
+  // Tools accept at most four scalar fields. Bound nested/unknown input before
+  // schema validation; Fastify separately limits the entire request to 32 KiB.
+  const mcp=new McpServer({name:'relief-atlas',version:'1.0.0'},{maxToolInputElements:16});
   const result=(tool:string,value:unknown,plan=false)=>{
     observe(observer,{kind:'mcp_tool',requestId,tool,...(plan?planReceipt(value):{})});
     return asText(value);

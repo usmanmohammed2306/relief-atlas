@@ -1,0 +1,8 @@
+.time-off{margin:20px 0;padding:18px;border:1px solid var(--line);border-radius:16px;min-width:0}
+.time-off legend{padding:0 6px;font-weight:650}
+.time-off p{font-size:.875rem;line-height:1.6}
+.time-off-add{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
+.time-off-add label{flex:1;min-width:160px}
+.time-off-add button,.time-off li button{min-height:44px}
+.time-off ul{list-style:none;padding:0;margin:14px 0;display:grid;gap:6px}
+.time-off li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid var(--line)}

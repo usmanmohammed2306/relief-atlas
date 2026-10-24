@@ -53,6 +53,16 @@ Helper order matters: the first two helpers enter wave 1; later helpers enter wa
 
 Unsaved edits still block approval. Saving refreshes the fingerprint and exact outreach preview; it does not approve the plan or send anything. The comparison is local to the current edit session, not a permanent version history or a substitute for server-side authorization. It uses no additional service or model.
 
+## A week changes. The plan should tell you.
+
+Friday dinner, Saturday's visit and Monday's ride each need their own commitment. A helper who can receive a message today may be away on Saturday. In **Circle → Your preferences → Dates you cannot help**, helpers can save up to 60 whole unavailable dates, interpreted in their contact timezone. Quiet hours still govern contact timing separately.
+
+Draft suggestions, exact approval, queued delivery and new acceptance check the task's date. The organizer can see a blocked selection, remove it and explicitly review another helper. Rehearsal uses the same date rule without contacting anyone. Changing preferences never silently cancels an accepted task: the helper must use **I can’t do it**, preserving the cancellation and the need for recovery approval. Older preference clients preserve saved dates when they omit the new field.
+
+Try it: save Sam's Saturday as unavailable, then ask `Bring dinner Friday at 6pm and check on Dad Saturday at 10am and drive Dad Monday at 4pm`. Check the exact future dates before approving. Sam can be considered for the other days while Saturday needs another invited helper. Task duration, travel time, calendar conflicts and general free/busy scheduling are not modeled; an unblocked date is not a promise of availability.
+
+October 23 feature verification: 13 local validation/workflow checks and one Chrome journey passed against this public runtime source, including older-schema upgrade and a multi-day cancellation/recovery story. Seven separate isolated PostgreSQL checks passed, including two preference-edit races. These are fictional local checks, not real household observations or a cloud deployment.
+
 ## How it works
 
 React and TypeScript provide the interface, with optional 3D illustrations, reduced-motion support and a lightweight graphics fallback. Fastify serves the API, built web app and a real Streamable HTTP MCP endpoint at `/mcp`. The Alexa-style entrance is a custom simulator, not a live Alexa+ integration.

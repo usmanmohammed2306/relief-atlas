@@ -4,6 +4,7 @@ import type { Database, Queryable, Row } from './db.js';
 import { AtlasTask, parseAtlasTasks } from './atlas-parser.js';
 import { checkSafetyText } from './scope.js';
 import { contactAllowed } from './eligibility.js';
+import { taskDateAllowed } from './availability.js';
 import { AppError, type Actor, ReliefService } from './service.js';
 import { deliveryMode,offerMessage } from './worker.js';
 import { jobHealth } from './job-health.js';
@@ -73,7 +74,7 @@ export class AtlasService {
       }else tasks=parseAtlasTasks(text,household.rows[0].timezone);
     }
     catch(error) { if(error instanceof AppError)throw error;throw new AppError(422,'Could not prepare tasks. Clarify the request.'); }
-    for (const task of tasks) task.recipientIds=(await this.relief.eligible(householdId,task.type)).map(item=>item.id);
+    for (const task of tasks) task.recipientIds=(await this.relief.eligible(householdId,task.type,task.dueAt)).map(item=>item.id);
     await this.relief.upsertUser(actor);
     return this.saveNew(actor,householdId,text,tasks,null,receipt,options.useModel?options.proposalKey:undefined);
   }
@@ -166,8 +167,9 @@ export class AtlasService {
         if (unsafe) throw new AppError(422,unsafe);
         if (!task.dueAt||new Date(task.dueAt)<=new Date()) throw new AppError(422,`Task ${index+1} needs a future, exact due time.`);
         if (!task.recipientIds.length||new Set(task.recipientIds).size!==task.recipientIds.length) throw new AppError(422,`Task ${index+1} needs one to five distinct helpers.`);
-        const people=await tx.query("SELECT m.id,m.email,m.status,m.role,p.opted_in,p.task_types,p.quiet_start,p.quiet_end,p.timezone FROM memberships m JOIN helper_preferences p ON p.membership_id=m.id WHERE m.household_id=$1 AND m.id=ANY($2::text[]) FOR UPDATE OF m,p",[plan.household_id,task.recipientIds]);
+        const people=await tx.query("SELECT m.id,m.email,m.status,m.role,p.opted_in,p.task_types,p.quiet_start,p.quiet_end,p.timezone,p.unavailable_dates FROM memberships m JOIN helper_preferences p ON p.membership_id=m.id WHERE m.household_id=$1 AND m.id=ANY($2::text[]) FOR UPDATE OF m,p",[plan.household_id,task.recipientIds]);
         if (people.rows.length!==task.recipientIds.length||people.rows.some(row=>row.role!=='helper'||row.status!=='active'||!row.opted_in||!row.task_types.includes(task.type)||!contactAllowed(row))) throw new AppError(409,`Task ${index+1} has a helper who is no longer eligible. Review the plan.`);
+        if(people.rows.some(row=>!taskDateAllowed(row,task.dueAt)))throw new AppError(409,`Task ${index+1} falls on a selected helper's unavailable date. Choose another helper and save a new review.`);
         if (people.rows.some(row=>outreach[index].recipients.find(person=>person.membershipId===row.id)?.email!==row.email)) throw new AppError(409,'A recipient address changed. Save and review the plan again.');
         const requestId=uid();
         requestIds.push(requestId);
@@ -193,7 +195,7 @@ export class AtlasService {
     // One read statement captures all factual inputs at the same database snapshot.
     // No jobs, plans, offers, or events are written by this path.
     const snapshot=await this.db.query(`SELECT a.*,now() AS snapshot_at,
-      COALESCE((SELECT jsonb_agg(jsonb_build_object('id',m.id,'name',u.display_name,'status',m.status,'role',m.role,'opted_in',p.opted_in,'task_types',p.task_types,'quiet_start',p.quiet_start,'quiet_end',p.quiet_end,'timezone',p.timezone) ORDER BY m.id)
+      COALESCE((SELECT jsonb_agg(jsonb_build_object('id',m.id,'name',u.display_name,'status',m.status,'role',m.role,'opted_in',p.opted_in,'task_types',p.task_types,'quiet_start',p.quiet_start,'quiet_end',p.quiet_end,'timezone',p.timezone,'unavailable_dates',p.unavailable_dates) ORDER BY m.id)
         FROM memberships m JOIN app_users u ON u.id=m.user_id JOIN helper_preferences p ON p.membership_id=m.id WHERE m.household_id=a.household_id),'[]'::jsonb) AS people,
       (SELECT count(*)::int FROM jobs j WHERE j.status IN ('pending','running') AND
         ((j.payload->>'offerId') IN (SELECT o.id FROM offers o JOIN coverage_requests r ON r.id=o.request_id WHERE r.household_id=a.household_id)
@@ -206,7 +208,7 @@ export class AtlasService {
     if (!tasks.some(task=>task.recipientIds.includes(excludedMembershipId))) throw new AppError(422,'Choose a helper selected in this reviewed plan.');
     const scenarios=[];
     for (const task of tasks) {
-      const candidates=(plan.people as Row[]).filter(person=>person.status==='active'&&person.role==='helper'&&person.opted_in&&person.task_types.includes(task.type)&&contactAllowed(person,new Date(plan.snapshot_at)));
+      const candidates=(plan.people as Row[]).filter(person=>person.status==='active'&&person.role==='helper'&&person.opted_in&&person.task_types.includes(task.type)&&contactAllowed(person,new Date(plan.snapshot_at))&&taskDateAllowed(person,task.dueAt));
       const selected=candidates.filter(person=>task.recipientIds.includes(person.id));
       const remaining=selected.filter(person=>person.id!==excludedMembershipId);
       scenarios.push({title:task.title,dueAt:task.dueAt,selectedBefore:selected.map(person=>person.name),remainingApproved:remaining.map(person=>person.name),uncoveredIfDeclined:remaining.length===0,possibleNewCandidates:candidates.filter(person=>!task.recipientIds.includes(person.id)).map(person=>person.name)});

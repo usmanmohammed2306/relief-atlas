@@ -65,7 +65,7 @@ export async function createEmbeddedDatabase(dataDir?:string):Promise<Database> 
   };
 }
 
-const migrations=['001_init.sql','002_job_lease.sql','003_household_timezone.sql','004_atlas_plans.sql','005_in_app_delivery.sql','006_reliability.sql','007_proposals.sql'];
+const migrations=['001_init.sql','002_job_lease.sql','003_household_timezone.sql','004_atlas_plans.sql','005_in_app_delivery.sql','006_reliability.sql','007_proposals.sql','008_helper_unavailable_dates.sql'];
 
 export async function migrate(db: Database): Promise<void> {
   await db.query('CREATE TABLE IF NOT EXISTS schema_migrations(name text PRIMARY KEY,checksum text NOT NULL,applied_at timestamptz NOT NULL DEFAULT now())');

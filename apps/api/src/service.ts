@@ -3,6 +3,7 @@ import type { Database, Queryable, Row } from './db.js';
 import { extractTask, safeBrief, TaskType } from './ai.js';
 import { checkScope, checkSafetyText } from './scope.js';
 import { contactAllowed } from './eligibility.js';
+import { taskDateAllowed, UnavailableDates } from './availability.js';
 import { reconcileCoverage } from './coverage.js';
 import { deliveryMode } from './worker.js';
 
@@ -45,9 +46,9 @@ export class ReliefService {
     return { id: householdId };
   }
 
-  async circle(actor: Actor, householdId: string) {
+  async circle(actor: Actor, householdId: string):Promise<Row[]> {
     await member(this.db,householdId,actor.id);
-    const people=await this.db.query('SELECT m.id,m.user_id,m.email,m.role,m.status,u.display_name,p.task_types,p.quiet_start,p.quiet_end,p.timezone,p.opted_in FROM memberships m LEFT JOIN app_users u ON u.id=m.user_id LEFT JOIN helper_preferences p ON p.membership_id=m.id WHERE m.household_id=$1 ORDER BY m.role,m.created_at',[householdId]);
+    const people=await this.db.query('SELECT m.id,m.user_id,m.email,m.role,m.status,u.display_name,p.task_types,p.quiet_start,p.quiet_end,p.timezone,p.opted_in,p.unavailable_dates FROM memberships m LEFT JOIN app_users u ON u.id=m.user_id LEFT JOIN helper_preferences p ON p.membership_id=m.id WHERE m.household_id=$1 ORDER BY m.role,m.created_at',[householdId]);
     return people.rows.map(person=>({...person,contact_allowed:person.role==='helper'&&person.status==='active'&&person.opted_in&&contactAllowed(person)}));
   }
 
@@ -81,12 +82,16 @@ export class ReliefService {
     return { joined: true };
   }
 
-  async preferences(actor: Actor, householdId: string, input: { taskTypes: string[]; quietStart: number; quietEnd: number; timezone: string; optedIn: boolean }) {
+  async preferences(actor: Actor, householdId: string, input: { taskTypes: string[]; quietStart: number; quietEnd: number; timezone: string; optedIn: boolean; unavailableDates?:string[] }) {
     const types=[...new Set(input.taskTypes.map(t=>TaskType.parse(t)))];
+    const unavailable=input.unavailableDates===undefined?undefined:UnavailableDates.safeParse(input.unavailableDates);
+    if(unavailable&&!unavailable.success)throw new AppError(422,'Choose at most 60 valid unavailable dates.');
     try { new Intl.DateTimeFormat('en-US',{timeZone:input.timezone}); } catch { throw new AppError(422,'Choose a valid timezone.'); }
     await this.db.transaction(async tx=>{
       const m=await member(tx,householdId,actor.id,'helper');
       await tx.query('INSERT INTO helper_preferences(membership_id,task_types,quiet_start,quiet_end,timezone,opted_in) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(membership_id) DO UPDATE SET task_types=EXCLUDED.task_types,quiet_start=EXCLUDED.quiet_start,quiet_end=EXCLUDED.quiet_end,timezone=EXCLUDED.timezone,opted_in=EXCLUDED.opted_in',[m.id,types,input.quietStart,input.quietEnd,input.timezone,input.optedIn]);
+      // Older clients omit this field. Only an explicit array replaces time off.
+      if(unavailable?.success)await tx.query('UPDATE helper_preferences SET unavailable_dates=$2 WHERE membership_id=$1',[m.id,JSON.stringify(unavailable.data)]);
     });
     return { saved: true };
   }
@@ -118,9 +123,9 @@ export class ReliefService {
     });
   }
 
-  async eligible(householdId: string, type: string) {
+  async eligible(householdId: string, type: string, dueAt?:string|null) {
     const rows=await this.db.query("SELECT m.id,m.email,u.display_name,p.* FROM memberships m JOIN app_users u ON u.id=m.user_id JOIN helper_preferences p ON p.membership_id=m.id WHERE m.household_id=$1 AND m.role='helper' AND m.status='active' AND p.opted_in=true AND $2=ANY(p.task_types) ORDER BY m.created_at,m.id",[householdId,type]);
-    return rows.rows.filter(row=>contactAllowed(row)).slice(0,5).map(row=>({ id:row.id,email:row.email,name:row.display_name }));
+    return rows.rows.filter(row=>contactAllowed(row)&&(!dueAt||taskDateAllowed(row,dueAt))).slice(0,5).map(row=>({ id:row.id,email:row.email,name:row.display_name }));
   }
 
   async eligibleFor(actor:Actor,householdId:string,type:string) {
@@ -134,7 +139,7 @@ export class ReliefService {
     if (!scope.allowed) throw new AppError(422,scope.reason || 'This request is outside Relief’s scope.');
     const household=await this.db.query('SELECT timezone FROM households WHERE id=$1',[householdId]);
     const { task,source }=await this.interpret(text,household.rows[0]?.timezone || 'America/Phoenix');
-    return { ...task, brief:safeBrief(task.type,task.title), recipients:await this.eligible(householdId,task.type), source, needsReview:true,warnings:scope.warnings };
+    return { ...task, brief:safeBrief(task.type,task.title), recipients:await this.eligible(householdId,task.type,task.dueAt), source, needsReview:true,warnings:scope.warnings };
   }
 
   async saveDraft(actor: Actor, householdId: string, text: string) {
@@ -168,13 +173,13 @@ export class ReliefService {
     const due=new Date(input.dueAt);
     if (!Number.isFinite(due.getTime()) || due <= new Date()) throw new AppError(422,'Choose a future due time.');
     if (!input.recipientIds.length || input.recipientIds.length>5 || new Set(input.recipientIds).size!==input.recipientIds.length) throw new AppError(422,'Choose one to five eligible helpers.');
-    const eligible=await this.eligible(input.householdId,type);
+    const eligible=await this.eligible(input.householdId,type,input.dueAt);
     if (!input.recipientIds.every(memberId=>eligible.some(item=>item.id===memberId))) throw new AppError(422,'A selected helper is no longer eligible. Review recipients again.');
     return this.db.transaction(async tx=>{
       const prior=await tx.query('SELECT id FROM coverage_requests WHERE organizer_id=$1 AND idempotency_key=$2',[actor.id,input.idempotencyKey]);
       if (prior.rows.length) return { id:prior.rows[0].id, duplicate:true };
-      const current=await tx.query("SELECT m.id,m.status,p.opted_in,p.task_types,p.quiet_start,p.quiet_end,p.timezone FROM memberships m JOIN helper_preferences p ON p.membership_id=m.id WHERE m.household_id=$1 AND m.id=ANY($2::text[]) FOR UPDATE OF m,p",[input.householdId,input.recipientIds]);
-      if (current.rows.length!==input.recipientIds.length || current.rows.some(row=>row.status!=='active'||!row.opted_in||!row.task_types.includes(type)||!contactAllowed(row))) throw new AppError(409,'A helper’s availability changed. Review recipients again.');
+      const current=await tx.query("SELECT m.id,m.status,p.opted_in,p.task_types,p.quiet_start,p.quiet_end,p.timezone,p.unavailable_dates FROM memberships m JOIN helper_preferences p ON p.membership_id=m.id WHERE m.household_id=$1 AND m.id=ANY($2::text[]) FOR UPDATE OF m,p",[input.householdId,input.recipientIds]);
+      if (current.rows.length!==input.recipientIds.length || current.rows.some(row=>row.status!=='active'||!row.opted_in||!row.task_types.includes(type)||!contactAllowed(row)||!taskDateAllowed(row,input.dueAt))) throw new AppError(409,'A helper’s availability changed. Review recipients again.');
       if (due<=new Date()) throw new AppError(422,'The due time has passed.');
       const requestId=id();
       const inserted=await tx.query('INSERT INTO coverage_requests(id,household_id,organizer_id,type,title,brief,instructions,location,due_at,status,idempotency_key) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(organizer_id,idempotency_key) DO NOTHING RETURNING id',[requestId,input.householdId,actor.id,type,input.title.trim(),input.brief.trim(),input.instructions.trim(),input.location.trim(),due.toISOString(),'seeking',input.idempotencyKey]);
@@ -209,6 +214,8 @@ export class ReliefService {
         await reconcileCoverage(tx,offer.request_id);
         return { status:'declined',requestId:offer.request_id };
       }
+      const preference=(await tx.query('SELECT timezone,unavailable_dates FROM helper_preferences WHERE membership_id=$1 FOR SHARE',[offer.membership_id])).rows[0];
+      if(!preference||!taskDateAllowed(preference,offer.due_at))throw new AppError(409,'This task falls on one of your unavailable dates. Update your preferences or decline the offer.');
       await tx.query("UPDATE coverage_requests SET status='accepted',accepted_by=$2,updated_at=now() WHERE id=$1",[offer.request_id,actor.id]);
       await tx.query("UPDATE offers SET status='accepted',responded_at=now() WHERE id=$1",[offerId]);
       await tx.query("UPDATE offers SET status='cancelled' WHERE request_id=$1 AND id<>$2 AND status IN ('queued','sent','simulated','in_app_available')",[offer.request_id,offerId]);

@@ -13,6 +13,7 @@ import { createDatabase,prepareSchema,seedDemo } from './db.js';
 import { authenticate,demoEnabled } from './auth.js';
 import { createMcpServer } from './mcp.js';
 import { AppError,ReliefService } from './service.js';
+import { UnavailableDates } from './availability.js';
 import { AtlasService,AtlasTasks } from './atlas.js';
 import { deliveryMode,startWorker } from './worker.js';
 import { securityConfig } from './security.js';
@@ -102,7 +103,7 @@ export async function createApp(db:Database,options:{worker?:boolean;proposals?:
   app.get<{Params:{id:string};Querystring:{type:string}}>('/api/households/:id/eligible',async request=>service.eligibleFor(await authenticate(request),request.params.id,request.query.type));
   app.post<{Params:{id:string}}>('/api/households/:id/invitations',async request=>service.invite(await authenticate(request),request.params.id,z.object({email:z.email()}).parse(request.body).email));
   app.post<{Params:{id:string}}>('/api/households/:id/join',async request=>service.join(await authenticate(request),request.params.id));
-  app.patch<{Params:{id:string}}>('/api/households/:id/preferences',async request=>service.preferences(await authenticate(request),request.params.id,z.object({taskTypes:z.array(z.enum(['meal','visit','ride'])),quietStart:z.number().int().min(0).max(23),quietEnd:z.number().int().min(0).max(23),timezone:z.string().min(3),optedIn:z.boolean()}).parse(request.body)));
+  app.patch<{Params:{id:string}}>('/api/households/:id/preferences',async request=>service.preferences(await authenticate(request),request.params.id,z.object({taskTypes:z.array(z.enum(['meal','visit','ride'])),quietStart:z.number().int().min(0).max(23),quietEnd:z.number().int().min(0).max(23),timezone:z.string().min(3),optedIn:z.boolean(),unavailableDates:UnavailableDates.optional()}).parse(request.body)));
   app.delete<{Params:{id:string;membershipId:string}}>('/api/households/:id/members/:membershipId',async request=>service.removeHelper(await authenticate(request),request.params.id,request.params.membershipId));
   app.post('/api/requests/preview',async request=>{const input=Preview.parse(request.body);return service.preview(await authenticate(request),input.householdId,input.text);});
   app.get<{Params:{id:string}}>('/api/drafts/:id',async request=>service.getDraft(await authenticate(request),request.params.id));

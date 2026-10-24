@@ -13,6 +13,7 @@ import './workspace.css';
 import { AtlasScene } from './AtlasScene.js';
 import './cinematic.css';
 import { NextSteps } from './NextSteps.js';
+import { HelperTimeOff } from './HelperTimeOff.js';
 
 type Circle={id:string;name:string;care_recipient_name:string;role:'organizer'|'helper';status:string};
 type Me={actor:{id:string;email:string;displayName:string};circles:Circle[];pending:Circle[]};
@@ -53,6 +54,7 @@ function App(){
   const [quietStart,setQuietStart]=useState(22);
   const [quietEnd,setQuietEnd]=useState(7);
   const [optedIn,setOptedIn]=useState(false);
+  const [unavailableDates,setUnavailableDates]=useState<string[]>([]);
   const [preferenceTimezone,setPreferenceTimezone]=useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [expanded,setExpanded]=useState<string|null>(null);
   const [requestFilter,setRequestFilter]=useState('all');
@@ -110,6 +112,7 @@ function App(){
           const mine=nextPeople.find(person=>person.user_id===identity.actor.id);
           setSelectedTypes(mine?.task_types||[]);setQuietStart(mine?.quiet_start??22);setQuietEnd(mine?.quiet_end??7);
           setOptedIn(mine?.opted_in===true);setPreferenceTimezone(mine?.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone);
+          setUnavailableDates(mine?.unavailable_dates||[]);
           preferencesLoaded.current=preferenceKey;
         }
       }else{if(generation!==loadGeneration.current)return;setBoard(null);setPeople([]);setOps(null);setDrafts([]);}
@@ -128,7 +131,7 @@ function App(){
   async function recover(requestId:string){await act(async()=>{const plan=await api<{id:string}>(`/api/atlas/requests/${requestId}/recover`,{method:'POST'});history.replaceState({},'',`?plan=${encodeURIComponent(plan.id)}`);setTab('ask');},'Recovery draft created. Choose a deadline and helpers, then review and approve. Nothing was sent.');}
   async function createCircle(){await act(async()=>{const result=await api<{id:string}>('/api/households',{method:'POST',body:JSON.stringify({name:newCircleName,careRecipientName:recipientName,consentAttested:consent,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone})});setHouseholdId(result.id);},'Care circle created. Invite someone you trust.');}
   async function invite(){if(!active)return;await act(()=>api(`/api/households/${active.id}/invitations`,{method:'POST',body:JSON.stringify({email:inviteEmail})}),deliveryMode==='email'?'Invitation created and email queued. Delivery is not yet confirmed.':'Invitation created in-app. No email was sent. Share the Relief sign-in link yourself.');setInviteEmail('');}
-  async function savePreferences(){if(!active)return;await act(()=>api(`/api/households/${active.id}/preferences`,{method:'PATCH',body:JSON.stringify({taskTypes:selectedTypes,quietStart,quietEnd,timezone:preferenceTimezone,optedIn})}),'Preferences saved.');}
+  async function savePreferences(){if(!active)return;await act(()=>api(`/api/households/${active.id}/preferences`,{method:'PATCH',body:JSON.stringify({taskTypes:selectedTypes,quietStart,quietEnd,timezone:preferenceTimezone,optedIn,unavailableDates})}),'Preferences saved.');}
 
   return <div className="app-shell">
     <a className="skip-link" href="#main-content">Skip to main content</a>
@@ -187,6 +190,7 @@ function App(){
           {role==='helper'&&<div className="panel"><h2>Your preferences</h2><p>Relief only contacts you for selected tasks within your chosen hours. Equal start and end hours mean no quiet period.</p>
             <div className="type-checks">{Object.entries(typeLabel).map(([value,name])=><label key={value} className="checkline"><input type="checkbox" checked={selectedTypes.includes(value)} onChange={()=>setSelectedTypes(selectedTypes.includes(value)?selectedTypes.filter(x=>x!==value):[...selectedTypes,value])}/>{name}</label>)}</div>
             <div className="form-grid"><label>Quiet hours start<select value={quietStart} onChange={e=>setQuietStart(Number(e.target.value))}>{Array.from({length:24},(_,h)=><option key={h} value={h}>{h}:00</option>)}</select></label><label>Quiet hours end<select value={quietEnd} onChange={e=>setQuietEnd(Number(e.target.value))}>{Array.from({length:24},(_,h)=><option key={h} value={h}>{h}:00</option>)}</select></label><label>Contact timezone<input value={preferenceTimezone} onChange={e=>setPreferenceTimezone(e.target.value)} placeholder="America/Phoenix"/></label></div>
+            <HelperTimeOff dates={unavailableDates} timezone={preferenceTimezone} disabled={loading} onChange={setUnavailableDates}/>
             <label className="checkline"><input type="checkbox" checked={optedIn} onChange={e=>setOptedIn(e.target.checked)}/>I’m ready to receive requests.</label><button className="primary" disabled={loading} onClick={()=>void savePreferences()}>Save preferences</button>
           </div>}
           <div className="panel"><h2>People in this circle</h2><div className="people-list">{people.map(person=><div className="person-row" key={person.id}><span className="mini-avatar">{person.display_name?.charAt(0)||person.email?.charAt(0)||'?'}</span><span><strong>{person.display_name||person.email}</strong><small>{person.role==='organizer'?'Organizer':person.status==='removed'?'Access revoked':person.status==='pending'?'Invitation pending':person.opted_in?'Helper · opted in':'Helper · not opted in'}</small></span>{role==='organizer'&&person.role==='helper'&&person.status!=='removed'?<button className="text-button danger" onClick={()=>{if(confirm(`Remove ${person.email} from this circle?`))void act(()=>api(`/api/households/${active.id}/members/${person.id}`,{method:'DELETE'}),'Helper removed.');}}>Remove</button>:null}</div>)}</div></div>

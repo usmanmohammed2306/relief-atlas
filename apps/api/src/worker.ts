@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Database, Queryable, Row } from './db.js';
 import { contactAllowed } from './eligibility.js';
+import { taskDateAllowed } from './availability.js';
 import { reconcileCoverage } from './coverage.js';
 import { observe, type Observer } from './telemetry.js';
 
@@ -89,7 +90,7 @@ async function fenced(db:Database,job:Row,action:(tx:Queryable)=>Promise<void>) 
 }
 
 async function loadOffer(db:Queryable,job:Row,lock=false):Promise<Row|undefined> {
-  return (await db.query('SELECT o.*,r.type,r.due_at,r.status AS request_status,r.household_id,r.organizer_id,m.email,m.status AS member_status,p.opted_in,p.task_types,p.quiet_start,p.quiet_end,p.timezone FROM offers o JOIN coverage_requests r ON r.id=o.request_id JOIN memberships m ON m.id=o.membership_id JOIN helper_preferences p ON p.membership_id=m.id WHERE o.id=$1'+(lock?' FOR UPDATE OF o,r,m,p':''),[job.payload.offerId])).rows[0];
+  return (await db.query('SELECT o.*,r.type,r.due_at,r.status AS request_status,r.household_id,r.organizer_id,m.email,m.status AS member_status,p.opted_in,p.task_types,p.quiet_start,p.quiet_end,p.timezone,p.unavailable_dates FROM offers o JOIN coverage_requests r ON r.id=o.request_id JOIN memberships m ON m.id=o.membership_id JOIN helper_preferences p ON p.membership_id=m.id WHERE o.id=$1'+(lock?' FOR UPDATE OF o,r,m,p':''),[job.payload.offerId])).rows[0];
 }
 
 function available(offer:Row,job:Row) {
@@ -97,7 +98,7 @@ function available(offer:Row,job:Row) {
 }
 
 function eligible(offer:Row) {
-  return offer.member_status==='active'&&offer.opted_in&&offer.task_types.includes(offer.type)&&contactAllowed(offer)&&(!offer.recipient_email||offer.recipient_email===offer.email);
+  return offer.member_status==='active'&&offer.opted_in&&offer.task_types.includes(offer.type)&&contactAllowed(offer)&&taskDateAllowed(offer,offer.due_at)&&(!offer.recipient_email||offer.recipient_email===offer.email);
 }
 
 async function workerEvent(tx:Queryable,job:Row,offer:Row,kind:string,detail:Record<string,unknown>={}) {

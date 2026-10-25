@@ -13,6 +13,7 @@ import { createDatabase,prepareSchema,seedDemo } from './db.js';
 import { authenticate,demoEnabled } from './auth.js';
 import { createMcpServer } from './mcp.js';
 import { AppError,ReliefService } from './service.js';
+import {CircleControls} from './circle-controls.js';
 import { UnavailableDates } from './availability.js';
 import { AtlasService,AtlasTasks } from './atlas.js';
 import { deliveryMode,startWorker } from './worker.js';
@@ -42,6 +43,7 @@ export async function createApp(db:Database,options:{worker?:boolean;proposals?:
   };
   const receipts=new WeakMap<object,Pick<Observation,'planId'|'careRequestIds'>>();
   const service=new ReliefService(db);
+  const controls=new CircleControls(db);
   const config=options.proposals?undefined:readBedrockConfig();
   const proposals=options.proposals||(config?new ProposalService(db,bedrockProvider(config),config):undefined);
   const atlas=new AtlasService(db,service,proposals);
@@ -93,12 +95,21 @@ export async function createApp(db:Database,options:{worker?:boolean;proposals?:
     try{await db.query('SELECT 1');return {ok:true};}
     catch{return reply.code(503).send({ok:false,error:'Database unavailable'});}
   });
-  app.get('/api/public-config',async()=>({supabaseUrl:process.env.SUPABASE_URL||'',supabaseAnonKey:process.env.SUPABASE_ANON_KEY||'',deliveryMode:deliveryMode(),model:{available:!!proposals,source:proposals?.provider.source||'disabled'}}));
+  const product={name:'Relief Atlas',stage:'Private pilot preview',version:'0.2.0-preview',supportEmail:z.email().max(320).parse(process.env.SUPPORT_EMAIL||'musmanme@asu.edu')};
+  app.get('/api/public-config',async()=>({product,authProvider:process.env.AUTH_PROVIDER||'supabase',
+    cognito:process.env.AUTH_PROVIDER==='cognito'?{domain:process.env.COGNITO_DOMAIN||'',clientId:process.env.COGNITO_CLIENT_ID||''}:undefined,
+    supabaseUrl:process.env.AUTH_PROVIDER==='cognito'?'':process.env.SUPABASE_URL||'',supabaseAnonKey:process.env.AUTH_PROVIDER==='cognito'?'':process.env.SUPABASE_ANON_KEY||'',deliveryMode:deliveryMode(),model:{available:!!proposals,source:proposals?.provider.source||'disabled'}}));
   app.get('/api/me',async request=>service.me(await authenticate(request)));
   app.post('/api/households',async request=>{
     const actor=await authenticate(request);await service.upsertUser(actor);
     return service.createHousehold(actor,z.object({name:z.string().min(2).max(80),careRecipientName:z.string().min(1).max(60),consentAttested:z.boolean(),timezone:z.string().min(3)}).parse(request.body));
   });
+  app.get<{Params:{id:string}}>('/api/households/:id/export',async(request,reply)=>{
+    const result=await controls.export(await authenticate(request),request.params.id);
+    reply.header('content-disposition','attachment; filename="relief-circle-export.json"');
+    return result;
+  });
+  app.post<{Params:{id:string}}>('/api/households/:id/close',async request=>controls.close(await authenticate(request),request.params.id,z.object({confirmation:z.string().min(1).max(80)}).strict().parse(request.body).confirmation));
   app.get<{Params:{id:string}}>('/api/households/:id/circle',async request=>service.circle(await authenticate(request),request.params.id));
   app.get<{Params:{id:string};Querystring:{type:string}}>('/api/households/:id/eligible',async request=>service.eligibleFor(await authenticate(request),request.params.id,request.query.type));
   app.post<{Params:{id:string}}>('/api/households/:id/invitations',async request=>service.invite(await authenticate(request),request.params.id,z.object({email:z.email()}).parse(request.body).email));

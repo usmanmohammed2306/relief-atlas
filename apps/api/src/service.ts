@@ -58,7 +58,9 @@ export class ReliefService {
     if (normalized === actor.email.toLowerCase()) throw new AppError(422,'You are already in this circle.');
     const membershipId=id();
     await this.db.transaction(async tx => {
-      await tx.query('SELECT id FROM households WHERE id=$1 FOR UPDATE',[householdId]);
+      const household=(await tx.query('SELECT id,closed_at FROM households WHERE id=$1 FOR UPDATE',[householdId])).rows[0];
+      if(!household||household.closed_at)throw new AppError(409,'This circle is closed. No invitation was created.');
+      await member(tx,householdId,actor.id,'organizer');
       const prior=await tx.query('SELECT * FROM memberships WHERE household_id=$1 AND email=$2 FOR UPDATE',[householdId,normalized]);
       if (prior.rows[0]?.status==='active') throw new AppError(409,'This helper is already active.');
       if (prior.rows[0]?.status==='pending') throw new AppError(409,'This invitation is already pending.');

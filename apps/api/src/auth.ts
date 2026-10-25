@@ -2,6 +2,7 @@ import type { FastifyRequest } from 'fastify';
 import type { Actor } from './service.js';
 import { AppError } from './service.js';
 import { z } from 'zod';
+import { authenticateCognito } from './cognito-auth.js';
 
 const VerifiedUser=z.object({
   id:z.string().min(1).max(200),email:z.email().max(320),
@@ -21,6 +22,8 @@ export async function authenticate(request:FastifyRequest):Promise<Actor> {
   if (process.env.DEMO_MODE==='true' && typeof demoId==='string' && demoActors[demoId]) return demoActors[demoId];
   const bearer=request.headers.authorization?.match(/^Bearer (.+)$/i)?.[1];
   if (!bearer) throw new AppError(401,'Sign in to continue.');
+  if(process.env.AUTH_PROVIDER==='cognito')return authenticateCognito(bearer);
+  if(process.env.AUTH_PROVIDER&&process.env.AUTH_PROVIDER!=='supabase')throw new AppError(503,'Authentication is not configured.');
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) throw new AppError(503,'Authentication is not configured.');
   let response:Response;
   try {

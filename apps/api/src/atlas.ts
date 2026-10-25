@@ -140,7 +140,7 @@ export class AtlasService {
       const outreach=await review(tx,plan.household_id,tasks);
       const hash=digest(tasks,outreach,mode);
       await tx.query('UPDATE atlas_plans SET payload=$2,digest=$3,delivery_mode=$4,review_snapshot=$5 WHERE id=$1',[planId,JSON.stringify(tasks),hash,mode,JSON.stringify(outreach)]);
-      return {id:planId,householdId:plan.household_id,sourceText:plan.source_text,tasks,outreach,deliveryMode:mode,digest:hash,status:'draft',expiresAt:new Date(plan.expires_at).toISOString(),clarifications:deadlineClarifications(tasks,plan.source_text)};
+      return {id:planId,householdId:plan.household_id,sourceText:plan.source_text,tasks,outreach,deliveryMode:mode,digest:hash,status:'draft',expiresAt:new Date(plan.expires_at).toISOString(),recoverySourceId:plan.recovery_source_id,proposal:plan.proposal_metadata as Partial<ProposalReceipt>,needsRefresh:false,clarifications:deadlineClarifications(tasks,plan.source_text)};
     });
   }
 

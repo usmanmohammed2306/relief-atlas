@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "pnpm --parallel --filter @relief/api --filter @relief/web dev",
     "build": "pnpm --filter @relief/web build && pnpm --filter @relief/api build",
-    "start": "pnpm --filter @relief/api start"
+    "start": "pnpm --filter @relief/api start",
+    "typecheck": "pnpm --filter @relief/web typecheck && pnpm --filter @relief/api typecheck"
   }
 }

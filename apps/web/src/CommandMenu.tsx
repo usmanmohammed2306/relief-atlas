@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Command, Search, X } from 'lucide-react';
 
-export type Tab = 'today' | 'ask' | 'offers' | 'circle';
-type Props = { organizer: boolean; onNavigate: (tab: Tab) => void; onMap: () => void; onTheme: () => void; theme: 'night' | 'daylight' };
+export type Tab = 'today' | 'plan' | 'ask' | 'offers' | 'circle' | 'task' | 'tools';
+type Props = { organizer: boolean; onNavigate: (tab: Tab) => void; onMap: () => void; onTheme: () => void; theme: 'night' | 'daylight'; hideTrigger?: boolean; openSignal?: number };
 
-export function CommandMenu({ organizer, onNavigate, onMap, onTheme, theme }: Props) {
+export function CommandMenu({ organizer, onNavigate, onMap, onTheme, theme, hideTrigger=false, openSignal=0 }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -21,11 +21,13 @@ export function CommandMenu({ organizer, onNavigate, onMap, onTheme, theme }: Pr
     return () => window.removeEventListener('keydown', handle);
   }, []);
   useEffect(() => { if (open && !dialog.current?.open) { dialog.current?.showModal(); input.current?.focus(); } }, [open]);
+  useEffect(()=>{if(openSignal)setOpen(true);},[openSignal]);
   function run(action: () => void) { dialog.current?.close(); action(); }
   const commands = [
-    { name: 'Today overview', hint: 'Read current coverage', action: () => onNavigate('today') },
+    { name: 'Home', hint: 'Your next action', action: () => onNavigate('today') },
     ...(organizer ? [
       { name: 'Prepare an outreach draft', hint: 'Review first. Nothing sent.', action: () => onNavigate('ask') },
+      { name: 'Your plan', hint: 'View all requests', action: () => onNavigate('plan') },
       { name: 'Open coverage map', hint: 'Inspect task and helper records', action: onMap }
     ] : []),
     { name: 'My offers', hint: 'Respond from the offer screen', action: () => onNavigate('offers') },
@@ -34,7 +36,7 @@ export function CommandMenu({ organizer, onNavigate, onMap, onTheme, theme }: Pr
   ].filter(command => `${command.name} ${command.hint}`.toLowerCase().includes(query.trim().toLowerCase()));
 
   return <>
-    <button className="command-trigger" ref={trigger} aria-label="Open quick navigation" aria-haspopup="dialog" onClick={() => setOpen(true)}><Command size={15}/><span>Navigate</span><kbd>⌘ K</kbd></button>
+    {!hideTrigger&&<button className="command-trigger" ref={trigger} aria-label="Open quick navigation" aria-haspopup="dialog" onClick={() => setOpen(true)}><Command size={15}/><span>Navigate</span><kbd>⌘ K</kbd></button>}
     <dialog className="command-dialog" ref={dialog} aria-labelledby="command-title" onClose={() => { setOpen(false); setQuery(''); }} onCancel={() => { trigger.current?.focus(); }} onKeyDown={event => {
       if (event.key !== 'Tab') return;
       const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)')];

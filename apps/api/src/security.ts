@@ -7,6 +7,8 @@ export function securityConfig(env:NodeJS.ProcessEnv=process.env) {
   if(production&&env.DEMO_MODE!=='true'&&(!env.APP_ORIGIN||origin.protocol!=='https:'))throw new Error('Production requires an explicit HTTPS APP_ORIGIN.');
   const auth=env.SUPABASE_URL?new URL(env.SUPABASE_URL):undefined;
   if(auth&&(auth.protocol!=='https:'||auth.username||auth.password))throw new Error('Authentication requires HTTPS without URL credentials.');
+  const cognito=env.AUTH_PROVIDER==='cognito'&&env.COGNITO_DOMAIN?new URL(env.COGNITO_DOMAIN):undefined;
+  if(cognito&&!/^https:\/\/[a-z0-9-]+\.auth\.us-(?:east|west)-[12]\.amazoncognito\.com$/.test(cognito.href.replace(/\/$/,'')))throw new Error('Cognito requires an exact supported AWS HTTPS domain.');
   const proxy=(env.TRUSTED_PROXY_CIDRS||'').split(',').map(value=>value.trim()).filter(Boolean);
   for(const value of proxy){
     const [host,bits,...extra]=value.split('/'),version=isIP(host);
@@ -15,7 +17,7 @@ export function securityConfig(env:NodeJS.ProcessEnv=process.env) {
   const headers:Record<string,string>={
     'x-content-type-options':'nosniff','referrer-policy':'no-referrer','x-frame-options':'DENY',
     'permissions-policy':'camera=(), microphone=(), geolocation=()',
-    'content-security-policy':`default-src 'self'; script-src 'self'; style-src 'self'${production?'':" 'unsafe-inline'"}; img-src 'self' data:; font-src 'self'; connect-src 'self'${auth?` ${auth.origin}`:''}${production?'':' ws: wss:'}; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'`
+    'content-security-policy':`default-src 'self'; script-src 'self'; style-src 'self'${production?'':" 'unsafe-inline'"}; img-src 'self' data:; font-src 'self'; connect-src 'self'${auth?` ${auth.origin}`:''}${cognito?` ${cognito.origin}`:''}${production?'':' ws: wss:'}; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'`
   };
   if(production&&origin.protocol==='https:')headers['strict-transport-security']='max-age=31536000';
   return {origin:origin.origin,trustProxy:proxy.length?proxy:false,headers};

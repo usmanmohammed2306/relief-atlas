@@ -1,0 +1,200 @@
+/* Comfortable reading and quiet hierarchy across the real application. */
+:root {
+  font-size: 16px;
+  --muted: #52665d;
+  --paper: #f7f6f1;
+  --surface: #fffefa;
+}
+body { line-height: 1.6; }
+.page { max-width: 1380px; padding: 44px clamp(24px, 4vw, 64px) 80px; }
+.page-head { margin-bottom: 36px; }
+.page-head p { font-size: 17px; line-height: 1.7; max-width: 60ch; }
+.page-head h1 { line-height: 1.12; max-width: 20ch; }
+.eyebrow { font-size: 12px; letter-spacing: .12em; line-height: 1.6; }
+.primary, .secondary, .subtle { min-height: 48px; padding: 13px 20px; font-size: 15px; line-height: 1.45; border-radius: 12px; }
+input:not([type=checkbox]):not([type=radio]), textarea, select { font-size: 16px; line-height: 1.6; }
+input:not([type=checkbox]):not([type=radio]), select { min-height: 48px; }
+input[type=checkbox], input[type=radio] { width: 18px; height: 18px; flex-shrink: 0; }
+.sidebar nav { gap: 10px; }
+.nav-item { font-size: 15px; min-height: 50px; }
+.workspace strong { font-size: 14px; }
+.workspace small, .sidebar-foot, .safety-note { font-size: 12px; line-height: 1.7; }
+.workspace-label, .brand-subtitle { font-size: 12px; }
+.topbar-context { font-size: 13px; }
+.top-right select { font-size: 13px; min-height: 44px; }
+.command-trigger { font-size: 13px; min-height: 44px; }
+.theme-toggle { min-height: 44px; width: 44px; }
+.demo-pill { font-size: 11px; letter-spacing: .06em; }
+.daily-brief { padding: 28px 30px; border-radius: 20px; }
+.daily-brief p, .brief-link { font-size: 15px; line-height: 1.7; }
+.truth-summary { padding: 12px; border-radius: 18px; margin-block: 28px; }
+.summary-heading h2 { font-size: 18px; }
+.summary-heading>span { font-size: 12px; line-height: 1.6; }
+.summary-card { padding: 22px 18px; gap: 16px 12px; }
+.summary-label { font-size: 13px; line-height: 1.5; }
+.summary-number { font-size: 38px; }
+.section-head { margin-block: 36px 22px; }
+.section-head h2 { font-size: 30px; line-height: 1.25; }
+.section-head>span, .page-footnote { font-size: 13px; line-height: 1.7; }
+.request-card, .panel, .atlas-planner { border-radius: 20px; box-shadow: 0 4px 24px #173e3605; }
+.request-card { padding: 30px; margin-bottom: 22px; }
+.request-top { gap: 20px; }
+.request-top h3 { font-size: 29px; line-height: 1.25; margin-block: 12px; }
+.request-top p { font-size: 16px; line-height: 1.7; max-width: 65ch; }
+.request-category, .status-chip { font-size: 12px; line-height: 1.5; }
+.status-chip { padding: 7px 12px; }
+.accepted-line, .accepted-line.muted, .risk-label, .checkline { font-size: 14px; line-height: 1.7; }
+.request-actions { gap: 12px; margin-top: 22px; flex-wrap: wrap; }
+.details-toggle { min-height: 44px; font-size: 14px; margin-top: 8px; }
+.details { gap: 24px; padding-top: 24px; }
+.details strong, .details span { font-size: 15px; line-height: 1.75; }
+.timeline { margin-top: 26px; padding-top: 24px; }
+.provenance-event { padding: 0 0 24px 24px; }
+.provenance-event summary { font-size: 14px; line-height: 1.6; }
+.provenance-event time, .provenance-event small, .offer-receipts { font-size: 12px; line-height: 1.8; }
+.panel { padding: 32px; }
+.panel h2 { font-size: 29px; line-height: 1.25; }
+.panel p, .panel label:not(.checkline), .auth-card label:not(.checkline) { font-size: 15px; line-height: 1.7; }
+.person-row { padding-block: 20px; gap: 16px; }
+.person-row strong { font-size: 16px; }
+.person-row small, .circle-switch { font-size: 13px; line-height: 1.7; }
+.notifications { padding: 26px; border-radius: 18px; margin-block: 28px; }
+.notification { font-size: 14px; line-height: 1.7; padding-block: 10px; gap: 14px; }
+.notification small { font-size: 12px; }
+.saved-drafts { padding: 28px; border-radius: 18px; margin-block: 28px; }
+.saved-drafts strong { font-size: 16px; }
+.saved-drafts small { font-size: 13px; line-height: 1.6; }
+.saved-drafts article { gap: 18px; padding-block: 18px; }
+.request-filters { gap: 10px; flex-wrap: wrap; }
+.request-filters button, .view-switch button { min-height: 44px; font-size: 13px; padding: 10px 14px; }
+.request-search { min-width: 0; }
+.request-search input { font-size: 15px; }
+.atlas-planner { padding: clamp(24px, 3vw, 40px); }
+.atlas-intro h2 { font-size: 30px; line-height: 1.25; }
+.atlas-intro p, .composer-guidance { font-size: 16px; line-height: 1.75; }
+.atlas-label { font-size: 15px; margin: 28px 0 12px; }
+.atlas-planner>textarea { min-height: 140px; padding: 20px; font-size: 18px; line-height: 1.75; }
+.atlas-actions { gap: 24px; margin-top: 22px; }
+.atlas-actions>span, .atlas-save>span, .channel-note { font-size: 13px; line-height: 1.7; }
+.planner-steps { gap: 16px; padding-block: 20px; }
+.planner-steps li { font-size: 13px; line-height: 1.6; }
+.atlas-task { padding: 30px; margin-block: 28px; border-radius: 16px; }
+.atlas-task-head { padding-bottom: 22px; margin-bottom: 28px; }
+.atlas-task-head strong { font-size: 28px; line-height: 1.3; }
+.atlas-task-head small { font-size: 13px; line-height: 1.6; }
+.atlas-task label:not(.atlas-check), .atlas-task legend { font-size: 14px; line-height: 1.6; }
+.atlas-task input:not([type=checkbox]), .atlas-task select { font-size: 16px; padding: 13px 15px; }
+.atlas-task fieldset { padding: 20px; margin-top: 16px; }
+.atlas-task fieldset p { font-size: 14px; line-height: 1.75; }
+.atlas-check { padding: 12px 15px; min-height: 46px; font-size: 14px; line-height: 1.5; gap: 9px; }
+.atlas-task .channel-note { font-size: 13px; }
+.atlas-review-head p, .outreach-preview p, .outreach-preview small { font-size: 14px; line-height: 1.8; }
+.outreach-preview { margin-top: 22px; padding-top: 20px; }
+.outreach-preview summary { font-size: 15px; line-height: 1.7; }
+.outreach-preview pre, .message-preview { font-size: 14px; line-height: 1.85; overflow-wrap: anywhere; white-space: pre-wrap; }
+.atlas-approval { padding: 28px; border-radius: 16px; gap: 24px; margin-top: 28px; }
+.atlas-approval strong { font-size: 21px; line-height: 1.4; }
+.atlas-approval p, .approval-hint { font-size: 14px; line-height: 1.7; }
+.rehearsal-panel { padding: 28px; border-radius: 18px; margin-top: 28px; }
+.rehearsal-panel h3 { font-size: 26px; line-height: 1.3; }
+.rehearsal-panel p, .rehearsal-boundary, .rehearsal-next { font-size: 14px; line-height: 1.8; }
+.rehearsal-controls { gap: 16px; flex-wrap: wrap; }
+.rehearsal-controls select { min-width: 0; max-width: 100%; }
+.rehearsal-comparison, .rehearsal-columns>div { padding: 22px; }
+.rehearsal-column-label, .rehearsal-receipt { font-size: 13px; line-height: 1.7; }
+.coverage-map { padding: 30px; border-radius: 20px; }
+.map-header h2 { font-size: 32px; max-width: 530px; }
+.map-snapshot { font-size: 13px; }
+.map-snapshot small, .map-legend>span, .map-column-labels { font-size: 12px; line-height: 1.6; }
+.map-task-node strong, .map-helper-node strong { font-size: 14px; line-height: 1.4; }
+.map-task-node small, .map-helper-node small { font-size: 12px; margin-top: 4px; line-height: 1.5; }
+.map-boundary, .map-limit { font-size: 13px; line-height: 1.8; }
+.decision-receipt { padding: 28px; border-radius: 16px; margin-top: 26px; }
+.receipt-explanation, .receipt-facts dd { font-size: 15px; line-height: 1.75; }
+.receipt-facts dt, .receipt-facts dd small, .receipt-offers li { font-size: 12px; line-height: 1.7; }
+.next-steps, .next-step { line-height: 1.7; }
+.next-steps p, .next-step p { font-size: 14px; }
+.next-steps h2 { font-size: 24px; }
+.review-changes { padding: 24px; margin-block: 24px; }
+.review-changes p, .review-changes dd { font-size: 14px; line-height: 1.7; }
+.review-changes dt, .review-changes small { font-size: 12px; line-height: 1.7; }
+.trust-dialog, .close-circle-dialog { padding: 36px; }
+.trust-content p, .close-circle-dialog p, .circle-controls p { font-size: 16px; line-height: 1.8; max-width: 65ch; }
+.trust-content small, .trust-dialog footer, .close-circle-dialog label { font-size: 13px; line-height: 1.7; }
+.trust-content h3 { font-size: 20px; }
+.trust-content section { padding-block: 26px; }
+.circle-start { padding: 30px; }
+.circle-start p, .circle-start small, .circle-start li button { font-size: 14px; line-height: 1.7; }
+.product-footer { margin-block: 38px; gap: 26px; }
+.product-footer button { font-size: 13px; min-height: 44px; }
+.public-nav { padding-block: 32px; }
+.public-nav nav>a, .public-nav nav>button:not(.secondary), .public-footer button { font-size: 15px; min-height: 44px; }
+.public-hero { padding-block: 88px 100px; gap: 64px; }
+.public-hero h1 { line-height: 1.12; margin-block: 26px; }
+.public-lede { font-size: 20px; line-height: 1.8; max-width: 43ch; }
+.public-promise { font-size: 17px; line-height: 1.7; }
+.public-note, .public-scene-caption { font-size: 13px; line-height: 1.7; }
+.public-how { padding-block: 80px 96px; }
+.public-step-grid { gap: 44px; margin-top: 52px; }
+.public-step-grid h3 { font-size: 24px; line-height: 1.35; }
+.public-step-grid p, .public-pilot aside p, .public-pilot ul { font-size: 16px; line-height: 1.8; }
+.public-pilot small, .public-footer { font-size: 13px; line-height: 1.7; }
+.public-scene { transform: none; box-shadow: 0 28px 72px #365f4214, inset 0 1px #fff; }
+[data-theme=night] { --muted: #adbbb3; }
+@media (min-width: 1100px) {
+  .public-hero>div:first-child { animation: relief-arrive .7s ease-out both; }
+  .public-scene { animation: relief-arrive .9s ease-out both; }
+}
+@keyframes relief-arrive { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 1100px) {
+  .page { padding: 32px 28px 72px; }
+  .topbar { padding-inline: 28px; }
+  .summary-card { padding: 20px 12px; }
+  .summary-label { font-size: 12px; }
+  .public-hero { gap: 40px; }
+}
+@media (max-width: 760px) {
+  .page { padding: 28px 20px 84px; }
+  .page-head p { font-size: 16px; }
+  .request-card, .panel, .atlas-planner, .coverage-map { padding: 24px; }
+  .atlas-task { padding: 22px; }
+  .topbar { padding-inline: 18px; }
+  .public-hero { padding: 54px 24px 64px; gap: 40px; }
+  .public-lede { font-size: 18px; }
+  .public-step-grid { gap: 32px; }
+  .map-header { flex-wrap: wrap; gap: 16px; }
+  .map-snapshot { text-align: left; white-space: normal; }
+  .map-snapshot small { max-width: 100%; }
+}
+@media (max-width: 540px) {
+  .page { padding: 24px 16px 84px; }
+  .topbar { padding-inline: 12px; gap: 8px; }
+  .top-right { gap: 7px; min-width: 0; }
+  .top-right select { max-width: 104px; font-size: 12px; padding-inline: 7px; }
+  .theme-toggle { width: 40px; min-height: 40px; }
+  .command-trigger { display: none; }
+  .demo-pill { padding: 6px; font-size: 10px; }
+  .mobile-brand { font-size: 25px; }
+  .request-card, .panel, .atlas-planner, .coverage-map { padding: 22px 18px; }
+  .request-top h3 { font-size: 27px; }
+  .summary-label { font-size: 12px!important; }
+  .atlas-task { padding: 20px 16px; }
+  .atlas-task-head strong { font-size: 25px; }
+  .atlas-task fieldset { padding: 16px; }
+  .atlas-actions { align-items: stretch; flex-direction: column; gap: 14px; }
+  .atlas-approval, .rehearsal-panel { padding: 22px 18px; }
+  .public-nav { padding: 20px 16px; flex-wrap: wrap; }
+  .public-nav nav { gap: 16px; flex-wrap: wrap; }
+  .public-nav nav>button:not(.secondary), .public-nav .secondary { font-size: 13px; }
+  .public-nav .secondary { padding-inline: 12px; }
+  .public-hero h1 { font-size: 44px; letter-spacing: -1.8px; }
+  .public-note { align-items: flex-start; }
+  .public-note svg { flex-shrink: 0; margin-top: 4px; }
+  .trust-dialog, .close-circle-dialog { padding: 26px 22px; }
+  .trust-content { max-height: 58vh; }
+  .trust-dialog footer { flex-wrap: wrap; }
+  .circle-start { padding: 24px 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .public-hero>div:first-child, .public-scene { animation: none; }
+}

@@ -23,6 +23,7 @@ import { ProposalService } from './proposal-service.js';
 import { bedrockProvider, readBedrockConfig } from './bedrock-proposer.js';
 import {AgentService,publicAgentRun} from './agent-service.js';
 import {bedrockAgent,readAgentConfig} from './agent-bedrock.js';
+import {localAgent,readLocalAgentConfig} from './agent-local.js';
 import {AgentInput,agentVersion,groundedTasks} from './agent-contract.js';
 import {fingerprint} from './proposals.js';
 import { observe, operationalId, planReceipt, type Observation, type Observer } from './telemetry.js';
@@ -51,8 +52,9 @@ export async function createApp(db:Database,options:{worker?:boolean;proposals?:
   const config=options.proposals?undefined:readBedrockConfig();
   const proposals=options.proposals||(config?new ProposalService(db,bedrockProvider(config),config):undefined);
   const atlas=new AtlasService(db,service,proposals);
-  const agentConfig=options.agent?undefined:readAgentConfig();
-  const agent=options.agent||(agentConfig?new AgentService(db,bedrockAgent(agentConfig),agentConfig):undefined);
+  const localConfig=options.agent?undefined:readLocalAgentConfig();
+  const agentConfig=options.agent||localConfig?undefined:readAgentConfig();
+  const agent=options.agent||(localConfig?new AgentService(db,localAgent(localConfig),localConfig):agentConfig?new AgentService(db,bedrockAgent(agentConfig),agentConfig):undefined);
   await app.register(cors,{origin:security.origin,allowedHeaders:['content-type','authorization','x-demo-user','mcp-protocol-version','mcp-session-id'],methods:['GET','POST','PUT','PATCH','DELETE','OPTIONS']});
   app.addHook('onSend',async(request,reply,payload)=>{
     reply.header('x-request-id',request.id);
@@ -137,7 +139,7 @@ export async function createApp(db:Database,options:{worker?:boolean;proposals?:
     const actor=await authenticate(request);z.strictObject({}).parse(request.body);
     if(!agent)throw new AppError(409,'The AI assistant is disabled.');
     const {run,householdId}=await agent.get(actor,request.params.id);
-    if(run.outcome!=='completed'||!run.answer||!run.draftEvidence)throw new AppError(409,'Clarify the request before preparing review.');
+    if(!publicAgentRun(run).canPrepareDraft||!run.answer||!run.draftEvidence)throw new AppError(409,'Clarify the request before preparing review.');
     const timezone=String((await db.query('SELECT timezone FROM households WHERE id=$1',[householdId])).rows[0].timezone);
     // Re-derive dates and quote grounding at the time of the human action, not from model dates.
     const evidence=groundedTasks(run.answer,run.turns,timezone,new Date());

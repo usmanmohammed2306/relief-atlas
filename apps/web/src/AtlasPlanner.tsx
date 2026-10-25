@@ -41,7 +41,7 @@ export function AtlasPlanner({householdId,people,demo,deliveryMode,initialPlanId
   useEffect(()=>{onDirtyChange?.(unsaved);},[unsaved,onDirtyChange]);
   useEffect(()=>()=>onDirtyChange?.(false),[onDirtyChange]);
   useEffect(()=>{if(!unsaved)return;const guard=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard);},[unsaved]);
-  useEffect(()=>{let current=true;apiRef.current('/api/public-config').then(config=>{if(current){setModel(config.model||{available:false,source:'disabled'});setAgent(config.agent||{available:false,source:'disabled'});}}).catch(()=>{});return()=>{current=false;};},[householdId]);
+  useEffect(()=>{let current=true;apiRef.current('/api/public-config').then(config=>{if(current){setModel(config.model||{available:false,source:'disabled'});setAgent(config.agent||{available:false,source:'disabled'});if(config.agent?.available&&!initialPlanId)setShowAgent(true);}}).catch(()=>{});return()=>{current=false;};},[householdId]);
   useEffect(()=>()=>{operation.current++;rehearsalGeneration.current++;},[householdId]);
   useEffect(()=>{heading.current?.focus();window.scrollTo({top:0,behavior:'instant'});},[phase,cursor,messageIndex]);
   useEffect(()=>{if(!initialPlanId||plan?.id===initialPlanId)return;let current=true;setBusy(true);apiRef.current(`/api/atlas/plans/${initialPlanId}`).then((fresh:Plan)=>{
@@ -76,7 +76,7 @@ export function AtlasPlanner({householdId,people,demo,deliveryMode,initialPlanId
   const task=tasks[cursor],messageTask=tasks[messageIndex],outreach=plan?.outreach[messageIndex];
   const selectedHelpers=[...new Set(tasks.flatMap(task=>task.recipientIds))].map(id=>helperOptions.find(helper=>helper.id===id)).filter((person):person is Person=>!!person);
   const step=phase==='describe'?1:phase==='details'?2:3;
-  const stepTitle=phase==='describe'?'What would help?':phase==='details'?'Set the details.':'Review the message.';
+  const stepTitle=phase==='describe'?(showAgent?'What needs arranging?':'What would help?'):phase==='details'?'Set the details.':'Review the message.';
   const hint=expired?'This draft expired. Start again.':!ready?'Each task needs a future time, a short description and an available helper.':dirty?'Save your changes before approval.':'Approval starts outreach. A helper still needs to accept.';
   return <section className={`focus-wizard phase-${phase}`} aria-label="Outreach planner">
     <div className="focus-wizard-top"><span>STEP {step} OF 3</span><div aria-label="Progress">{[1,2,3].map(value=><i className={value<=step?'active':''} key={value}/>)}</div></div>
@@ -85,8 +85,8 @@ export function AtlasPlanner({householdId,people,demo,deliveryMode,initialPlanId
     {notice&&<p role="status">{notice}</p>}
     {plan?.proposal?.outcome==='fallback'&&phase!=='describe'&&<p className="focus-validation" role="status">Automatic drafting fell back to rules. Check for missing tasks.</p>}
     {phase==='describe'&&<div className="focus-compose">
-      {agent.available&&<button className="text-button assistant-toggle" disabled={busy} onClick={()=>{if(showAgent&&agentDirty&&!window.confirm('Leave this unsaved assistant message?'))return;setShowAgent(value=>!value);}}>{showAgent?'Use the ordinary planner':'Talk it through with the assistant'}</button>}
-      {showAgent?<PlanningAssistant householdId={householdId} source={agent.source} api={api} onDirtyChange={setAgentDirty} onPlan={fresh=>{validate(fresh);setPlan(fresh);setTasks(fresh.tasks);setInput(fresh.sourceText);setDirty(false);setCursor(0);setPhase('details');setShowAgent(false);history.replaceState({},'',`?plan=${encodeURIComponent(fresh.id)}`);}}/>:<>
+      {agent.available&&<button className="text-button assistant-toggle" disabled={busy} onClick={()=>{if(showAgent&&agentDirty&&!window.confirm('Leave this unsaved assistant message?'))return;setShowAgent(value=>!value);}}>{showAgent?'Prepare a plan yourself':'Plan with the assistant'}</button>}
+      {showAgent?<PlanningAssistant householdId={householdId} source={agent.source} people={people} api={api} onDirtyChange={setAgentDirty} onPlan={fresh=>{validate(fresh);setPlan(fresh);setTasks(fresh.tasks);setInput(fresh.sourceText);setDirty(false);setCursor(0);setPhase('details');setShowAgent(false);history.replaceState({},'',`?plan=${encodeURIComponent(fresh.id)}`);}}/>:<>
       <p>A meal, a visit or a ride. Include a day and time.</p>
       <label className="sr-only" htmlFor="atlas-request">Describe the help needed</label><textarea id="atlas-request" rows={4} maxLength={1000} disabled={busy} value={input} onChange={event=>setInput(event.target.value)} placeholder="Dinner Friday at 6pm and a visit Saturday at 10am"/>
       <details className="focus-example"><summary>Need an example?</summary>{['Bring dinner tomorrow at 6pm','Check on Dad tomorrow at 10am'].map(example=><button key={example} onClick={()=>setInput(example)}>{example}<ArrowRight size={14}/></button>)}</details>

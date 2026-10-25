@@ -4,14 +4,15 @@ import {AppError,type Actor} from './service.js';
 import {contactAllowed} from './eligibility.js';
 import {taskDateAllowed} from './availability.js';
 import {checkSafetyText} from './scope.js';
-import {fingerprint} from './proposals.js';
+import {parseAtlasTasks} from './atlas-parser.js';
+import {fingerprint,ProposalRejected} from './proposals.js';
 import type {ModelLimits} from './bedrock-proposer.js';
 import {AgentInput,AgentAnswer,agentSystem,agentVersion,agentMaxSteps,agentMaxInputTokens,agentMaxOutputTokens,
   groundedTasks,helperRef,policy,tools,wireTools,type AgentProvider,type AgentMessage} from './agent-contract.js';
 
 export type AgentFact={id:string;tool:string;observedAt:string;data:unknown};
 export type AgentRun={kind:'agent';version:string;runId:string;source:AgentProvider['source'];modelId:string;outcome:'completed'|'needs_clarification'|'stopped';
-  reason?:string;answer?:AgentAnswer;facts:AgentFact[];turns:string[];inputTokens:number;outputTokens:number;modelCalls:number;estimatedCostUsd:number;usageComplete:boolean;
+  reason?:string;answer?:AgentAnswer;facts:AgentFact[];turns:string[];inputTokens:number;outputTokens:number;modelCalls:number;estimatedCostUsd:number;usageComplete:boolean;sourceReferenceCorrections?:number;
   draftEvidence?:NonNullable<ReturnType<typeof groundedTasks>>};
 async function access(tx:Queryable,actor:Actor,householdId:string){
  const row=(await tx.query(`SELECT h.timezone FROM households h JOIN memberships m ON m.household_id=h.id
@@ -20,7 +21,8 @@ async function access(tx:Queryable,actor:Actor,householdId:string){
  if(!row)throw new AppError(403,'Only an active organizer with household consent can use the assistant.');
  return String(row.timezone);
 }
-export const publicAgentRun=({turns,draftEvidence,...run}:AgentRun)=>({...run,canPrepareDraft:!!draftEvidence&&run.outcome==='completed',
+export const publicAgentRun=({turns,draftEvidence,...run}:AgentRun)=>({...run,canPrepareDraft:!!draftEvidence&&run.outcome!=='stopped',
+  taskPreviews:draftEvidence?.tasks.map(task=>({type:task.type,dueAt:task.dueAt})),
   draftWarning:draftEvidence?'These are selected source clauses, not proof that every need was captured. Review omissions, dates and helpers.':undefined});
 
 export class AgentService{
@@ -69,7 +71,10 @@ export class AgentService{
    });
    if(reserved.cached)return reserved.cached;
    const result:AgentRun={kind:'agent',version:agentVersion,runId:input.runId,source:this.provider.source,modelId:this.provider.modelId,outcome:'stopped',facts:[],turns:reserved.turns,inputTokens:0,outputTokens:0,modelCalls:0,estimatedCostUsd:0,usageComplete:false};
-   const messages:AgentMessage[]=[{role:'user',content:[{text:JSON.stringify({userTurns:reserved.turns,householdTimezone:reserved.timezone,referenceInstant:new Date().toISOString()})}]}];
+   const referenceInstant=new Date();
+   let dateHints:{type:string;dueAt:string|null}[]=[];
+   try{dateHints=parseAtlasTasks(input.text,reserved.timezone,referenceInstant).map(task=>({type:task.type,dueAt:task.dueAt}));}catch{/* Unsupported phrases still need the agent to ask or propose grounded clauses. */}
+   const messages:AgentMessage[]=[{role:'user',content:[{text:JSON.stringify({userTurns:reserved.turns,householdTimezone:reserved.timezone,referenceInstant:referenceInstant.toISOString(),deterministicDateHints:dateHints})}]}];
    const usedIds=new Set<string>();let toolCount=0,accountedCalls=0;
    try{
      for(let step=0;step<agentMaxSteps;step++){
@@ -108,13 +113,15 @@ export class AgentService{
        if(/\b(?:I|we|the assistant)\s+(?:(?:have|has|already)\s+)*(?:sent|approved|dispatched|contacted|invited|assigned|confirmed|completed)\b/i.test(answer.summary))throw new Error('unsupported_action_claim');
        if(!answer.citations.length||answer.citations.some(id=>!result.facts.some(fact=>fact.id===id)))throw new Error('unknown_citation');
        result.draftEvidence=groundedTasks(answer,reserved.turns,reserved.timezone,new Date());
-       result.answer=answer;result.outcome=answer.questions.length?'needs_clarification':'completed';break;
+       result.sourceReferenceCorrections=result.draftEvidence?.sourceReferences.filter((ref,index)=>ref.turn!==answer.tasks[index].turn||ref.timeTurn!==answer.tasks[index].timeTurn).length||0;
+       result.answer=result.draftEvidence?{...answer,tasks:answer.tasks.map((task,index)=>({...task,...result.draftEvidence!.sourceReferences[index]}))}:answer;
+       result.outcome=answer.questions.length?'needs_clarification':'completed';break;
      }
      if(!result.answer)result.reason='step_limit';
    }catch(error){
      if(error instanceof AppError&&error.status===403){await this.db.query("UPDATE model_calls SET status='failed' WHERE id=$1 AND status='pending'",[input.runId]);throw error;}
      const known=['timeout','context_limit','tool_limit','duplicate_tool_id','forbidden_tool','tool_result_limit','unverified_answer','unknown_citation','unsupported_action_claim','ungrounded_task','ungrounded_time','duplicate_task'];
-     result.reason=error instanceof Error&&known.includes(error.message)?error.message:'provider_or_validation_failure';
+     result.reason=error instanceof ProposalRejected?`source_${error.reason}`:error instanceof SyntaxError?'answer_json':error instanceof z.ZodError?'response_schema':error instanceof Error&&known.includes(error.message)?error.message:'provider_or_validation_failure';
      delete result.answer;delete result.draftEvidence;result.outcome='stopped';
    }
    try{

@@ -59,6 +59,6 @@ export interface ProposalProvider {
   readonly source:'bedrock'|'contract-test';readonly modelId:string;
   invoke(input:ReturnType<typeof proposalMessages>,signal:AbortSignal):Promise<ProviderResponse>;
 }
-export type ProposalReceipt={version:string;source:'deterministic'|'bedrock'|'contract-test';outcome:'validated'|'fallback';
+export type ProposalReceipt={version:string;source:'deterministic'|'bedrock'|'local'|'contract-test';outcome:'validated'|'fallback';
   reason?:string;modelId?:string;attemptId?:string;inputHash:string;promptHash?:string;elapsedMs?:number;
   inputTokens?:number;outputTokens?:number;estimatedCostUsd?:number;citations:Citation[]};

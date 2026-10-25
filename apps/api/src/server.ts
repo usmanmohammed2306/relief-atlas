@@ -21,6 +21,10 @@ import { securityConfig } from './security.js';
 import { runReliabilityLab } from './reliability-lab.js';
 import { ProposalService } from './proposal-service.js';
 import { bedrockProvider, readBedrockConfig } from './bedrock-proposer.js';
+import {AgentService,publicAgentRun} from './agent-service.js';
+import {bedrockAgent,readAgentConfig} from './agent-bedrock.js';
+import {AgentInput,agentVersion,groundedTasks} from './agent-contract.js';
+import {fingerprint} from './proposals.js';
 import { observe, operationalId, planReceipt, type Observation, type Observer } from './telemetry.js';
 
 try { process.loadEnvFile(); } catch { /* The deployment environment supplies variables. */ }
@@ -28,7 +32,7 @@ if (process.env.NODE_ENV==='production' && demoEnabled() && process.env.DEMO_PUB
 
 const Preview=z.object({householdId:z.string(),text:z.string().min(4).max(1000)});
 const PlanInput=Preview.extend({useModel:z.boolean().optional(),proposalKey:z.uuid().optional()});
-export async function createApp(db:Database,options:{worker?:boolean;proposals?:ProposalService;observer?:Observer;logStream?:{write:(line:string)=>void}}={}) {
+export async function createApp(db:Database,options:{worker?:boolean;proposals?:ProposalService;agent?:AgentService;observer?:Observer;logStream?:{write:(line:string)=>void}}={}) {
   deliveryMode();
   const security=securityConfig();
   const app=Fastify({logger:{redact:['req.headers.authorization','req.headers.cookie'],
@@ -47,6 +51,8 @@ export async function createApp(db:Database,options:{worker?:boolean;proposals?:
   const config=options.proposals?undefined:readBedrockConfig();
   const proposals=options.proposals||(config?new ProposalService(db,bedrockProvider(config),config):undefined);
   const atlas=new AtlasService(db,service,proposals);
+  const agentConfig=options.agent?undefined:readAgentConfig();
+  const agent=options.agent||(agentConfig?new AgentService(db,bedrockAgent(agentConfig),agentConfig):undefined);
   await app.register(cors,{origin:security.origin,allowedHeaders:['content-type','authorization','x-demo-user','mcp-protocol-version','mcp-session-id'],methods:['GET','POST','PUT','PATCH','DELETE','OPTIONS']});
   app.addHook('onSend',async(request,reply,payload)=>{
     reply.header('x-request-id',request.id);
@@ -98,7 +104,7 @@ export async function createApp(db:Database,options:{worker?:boolean;proposals?:
   const product={name:'Relief Atlas',stage:'Private pilot preview',version:'0.2.0-preview',supportEmail:z.email().max(320).parse(process.env.SUPPORT_EMAIL||'musmanme@asu.edu')};
   app.get('/api/public-config',async()=>({product,authProvider:process.env.AUTH_PROVIDER||'supabase',
     cognito:process.env.AUTH_PROVIDER==='cognito'?{domain:process.env.COGNITO_DOMAIN||'',clientId:process.env.COGNITO_CLIENT_ID||''}:undefined,
-    supabaseUrl:process.env.AUTH_PROVIDER==='cognito'?'':process.env.SUPABASE_URL||'',supabaseAnonKey:process.env.AUTH_PROVIDER==='cognito'?'':process.env.SUPABASE_ANON_KEY||'',deliveryMode:deliveryMode(),model:{available:!!proposals,source:proposals?.provider.source||'disabled'}}));
+    supabaseUrl:process.env.AUTH_PROVIDER==='cognito'?'':process.env.SUPABASE_URL||'',supabaseAnonKey:process.env.AUTH_PROVIDER==='cognito'?'':process.env.SUPABASE_ANON_KEY||'',deliveryMode:deliveryMode(),model:{available:!!proposals,source:proposals?.provider.source||'disabled'},agent:{available:!!agent,source:agent?.provider.source||'disabled',maxSteps:4}}));
   app.get('/api/me',async request=>service.me(await authenticate(request)));
   app.post('/api/households',async request=>{
     const actor=await authenticate(request);await service.upsertUser(actor);
@@ -118,6 +124,27 @@ export async function createApp(db:Database,options:{worker?:boolean;proposals?:
   app.delete<{Params:{id:string;membershipId:string}}>('/api/households/:id/members/:membershipId',async request=>service.removeHelper(await authenticate(request),request.params.id,request.params.membershipId));
   app.post('/api/requests/preview',async request=>{const input=Preview.parse(request.body);return service.preview(await authenticate(request),input.householdId,input.text);});
   app.get<{Params:{id:string}}>('/api/drafts/:id',async request=>service.getDraft(await authenticate(request),request.params.id));
+  app.post('/api/agent/runs',async request=>{
+    const actor=await authenticate(request);const input=AgentInput.parse(request.body);
+    if(!agent)throw new AppError(409,'The AI assistant is disabled. No model was called. Use the ordinary planner.');
+    return publicAgentRun(await agent.run(actor,input));
+  });
+  app.get<{Params:{id:string}}>('/api/agent/runs/:id',async request=>{
+    const actor=await authenticate(request);if(!agent)throw new AppError(409,'The AI assistant is disabled.');
+    return publicAgentRun((await agent.get(actor,request.params.id)).run);
+  });
+  app.post<{Params:{id:string}}>('/api/agent/runs/:id/draft',async request=>{
+    const actor=await authenticate(request);z.strictObject({}).parse(request.body);
+    if(!agent)throw new AppError(409,'The AI assistant is disabled.');
+    const {run,householdId}=await agent.get(actor,request.params.id);
+    if(run.outcome!=='completed'||!run.answer||!run.draftEvidence)throw new AppError(409,'Clarify the request before preparing review.');
+    const timezone=String((await db.query('SELECT timezone FROM households WHERE id=$1',[householdId])).rows[0].timezone);
+    // Re-derive dates and quote grounding at the time of the human action, not from model dates.
+    const evidence=groundedTasks(run.answer,run.turns,timezone,new Date());
+    if(!evidence)throw new AppError(409,'No grounded tasks to review.');
+    return atlas.createFromAgent(actor,householdId,{...evidence,runId:run.runId,receipt:{version:agentVersion,source:run.source,outcome:'validated',modelId:run.modelId,attemptId:run.runId,
+      inputHash:fingerprint(JSON.stringify(run.turns)),citations:evidence.citations,inputTokens:run.inputTokens,outputTokens:run.outputTokens,estimatedCostUsd:run.estimatedCostUsd}});
+  });
   app.post('/api/atlas/plans',async request=>{const input=PlanInput.parse(request.body);return atlas.create(await authenticate(request),input.householdId,input.text,input);});
   app.get<{Params:{id:string}}>('/api/atlas/plans/:id',async request=>atlas.get(await authenticate(request),request.params.id));
   app.get<{Params:{id:string}}>('/api/atlas/households/:id/drafts',async request=>atlas.drafts(await authenticate(request),request.params.id));

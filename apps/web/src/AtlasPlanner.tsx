@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowLeft, ArrowRight, Check, FlaskConical, LockKeyhole 
 import './atlas.css';
 import './planner-focus.css';
 import { HelpVisual } from './CareVisuals.js';
+import {PlanningAssistant} from './PlanningAssistant.js';
 import { deadlineInstant } from './deadline.js';
 import { ReviewChanges } from './ReviewChanges.js';
 
@@ -30,16 +31,17 @@ export function AtlasPlanner({householdId,people,demo,deliveryMode,initialPlanId
   const [dirty,setDirty]=useState(false),[busy,setBusy]=useState(false);
   const [error,setError]=useState(''),[notice,setNotice]=useState('');
   const [model,setModel]=useState({available:false,source:'disabled'}),[useModel,setUseModel]=useState(false);
+  const [agent,setAgent]=useState({available:false,source:'disabled'}),[showAgent,setShowAgent]=useState(false),[agentDirty,setAgentDirty]=useState(false);
   const [mcpTrace,setMcpTrace]=useState<McpTrace|null>(null);
   const [excluded,setExcluded]=useState(''),[rehearsal,setRehearsal]=useState<Rehearsal|null>(null);
   const operation=useRef(0),rehearsalGeneration=useRef(0),proposalAttempt=useRef<{text:string;key:string}|null>(null);
   const apiRef=useRef(api);apiRef.current=api;
   const heading=useRef<HTMLHeadingElement>(null);
-  const unsaved=dirty||phase==='describe'&&input.trim().length>0&&input!==plan?.sourceText;
+  const unsaved=agentDirty||dirty||phase==='describe'&&input.trim().length>0&&input!==plan?.sourceText;
   useEffect(()=>{onDirtyChange?.(unsaved);},[unsaved,onDirtyChange]);
   useEffect(()=>()=>onDirtyChange?.(false),[onDirtyChange]);
   useEffect(()=>{if(!unsaved)return;const guard=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard);},[unsaved]);
-  useEffect(()=>{let current=true;apiRef.current('/api/public-config').then(config=>{if(current)setModel(config.model||{available:false,source:'disabled'});}).catch(()=>{});return()=>{current=false;};},[householdId]);
+  useEffect(()=>{let current=true;apiRef.current('/api/public-config').then(config=>{if(current){setModel(config.model||{available:false,source:'disabled'});setAgent(config.agent||{available:false,source:'disabled'});}}).catch(()=>{});return()=>{current=false;};},[householdId]);
   useEffect(()=>()=>{operation.current++;rehearsalGeneration.current++;},[householdId]);
   useEffect(()=>{heading.current?.focus();window.scrollTo({top:0,behavior:'instant'});},[phase,cursor,messageIndex]);
   useEffect(()=>{if(!initialPlanId||plan?.id===initialPlanId)return;let current=true;setBusy(true);apiRef.current(`/api/atlas/plans/${initialPlanId}`).then((fresh:Plan)=>{
@@ -83,12 +85,15 @@ export function AtlasPlanner({householdId,people,demo,deliveryMode,initialPlanId
     {notice&&<p role="status">{notice}</p>}
     {plan?.proposal?.outcome==='fallback'&&phase!=='describe'&&<p className="focus-validation" role="status">Automatic drafting fell back to rules. Check for missing tasks.</p>}
     {phase==='describe'&&<div className="focus-compose">
+      {agent.available&&<button className="text-button assistant-toggle" disabled={busy} onClick={()=>{if(showAgent&&agentDirty&&!window.confirm('Leave this unsaved assistant message?'))return;setShowAgent(value=>!value);}}>{showAgent?'Use the ordinary planner':'Talk it through with the assistant'}</button>}
+      {showAgent?<PlanningAssistant householdId={householdId} source={agent.source} api={api} onDirtyChange={setAgentDirty} onPlan={fresh=>{validate(fresh);setPlan(fresh);setTasks(fresh.tasks);setInput(fresh.sourceText);setDirty(false);setCursor(0);setPhase('details');setShowAgent(false);history.replaceState({},'',`?plan=${encodeURIComponent(fresh.id)}`);}}/>:<>
       <p>A meal, a visit or a ride. Include a day and time.</p>
       <label className="sr-only" htmlFor="atlas-request">Describe the help needed</label><textarea id="atlas-request" rows={4} maxLength={1000} disabled={busy} value={input} onChange={event=>setInput(event.target.value)} placeholder="Dinner Friday at 6pm and a visit Saturday at 10am"/>
       <details className="focus-example"><summary>Need an example?</summary>{['Bring dinner tomorrow at 6pm','Check on Dad tomorrow at 10am'].map(example=><button key={example} onClick={()=>setInput(example)}>{example}<ArrowRight size={14}/></button>)}</details>
       {model.available&&<details className="focus-disclosure"><summary>Drafting options</summary><label className="checkline"><input type="checkbox" checked={useModel} disabled={busy} onChange={event=>{setUseModel(event.target.checked);proposalAttempt.current=null;}}/>{model.source==='contract-test'?'Use injected model contract test':'Use model-assisted drafting'}</label><p>{model.source==='contract-test'?'Injected test adapter. No live model.':'Opt in to send this request text to Amazon Bedrock. Do not include private details. Helper records and addresses are not sent.'}</p></details>}
       <button className="primary focus-continue" disabled={busy||input.trim().length<4} onClick={()=>void prepare()}>{busy?'Preparing…':'Continue'}<ArrowRight size={17}/></button>
       <p className="focus-wizard-assurance"><LockKeyhole size={13}/>{demo?'Demo · no real messages':'Nothing sent until you approve.'}</p>
+      </>}
     </div>}
     {phase==='details'&&plan&&task&&<>
       <p className="focus-task-count">Task {cursor+1} of {tasks.length}</p>

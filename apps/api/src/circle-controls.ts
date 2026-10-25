@@ -17,7 +17,7 @@ export class CircleControls{
     return this.db.transaction(async tx=>{
       await tx.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
       const household=await authorized(tx,actor,householdId);
-      const data={household,people:[] as Row[],requests:[] as Row[],offers:[] as Row[],plans:[] as Row[],events:[] as Row[]};
+      const data={household,people:[] as Row[],requests:[] as Row[],offers:[] as Row[],plans:[] as Row[],events:[] as Row[],assistantRuns:[] as Row[]};
       const queries:Record<Exclude<keyof typeof data,'household'>,string>={
         people:`SELECT m.id,m.user_id,m.email,m.role,m.status,m.created_at,u.display_name,
           p.task_types,p.quiet_start,p.quiet_end,p.timezone,p.opted_in,p.unavailable_dates
@@ -29,7 +29,8 @@ export class CircleControls{
           FROM offers o JOIN coverage_requests r ON r.id=o.request_id WHERE r.household_id=$1 ORDER BY o.id LIMIT 1001`,
         plans:`SELECT id,source_text,payload,digest,status,delivery_mode,review_snapshot,recovery_source_id,created_at,expires_at
           FROM atlas_plans WHERE household_id=$1 ORDER BY id LIMIT 1001`,
-        events:`SELECT id,request_id,actor_id,kind,detail,created_at FROM events WHERE household_id=$1 ORDER BY created_at,id LIMIT 1001`
+        events:`SELECT id,request_id,actor_id,kind,detail,created_at FROM events WHERE household_id=$1 ORDER BY created_at,id LIMIT 1001`,
+        assistantRuns:`SELECT id,actor_id,status,result,created_at FROM model_calls WHERE household_id=$1 AND result->>'kind'='agent' ORDER BY created_at,id LIMIT 1001`
       };
       for(const [key,sql]of Object.entries(queries)){
         const rows=(await tx.query(sql,[householdId])).rows;

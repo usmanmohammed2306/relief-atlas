@@ -95,6 +95,14 @@ export class AtlasService {
     return {...await this.get(actor,savedId),reviewUrl:`${process.env.APP_ORIGIN||'http://localhost:5173'}/?plan=${savedId}`};
   }
 
+  async createFromAgent(actor:Actor,householdId:string,evidence:{sourceText:string;tasks:AtlasTask[];receipt:ProposalReceipt;runId:string}) {
+    await organizer(this.db,householdId,actor);
+    const tasks=AtlasTasks.parse(evidence.tasks).map(task=>({...task,recipientIds:[] as string[],location:'',instructions:''}));
+    for(const task of tasks)task.recipientIds=(await this.relief.eligible(householdId,task.type,task.dueAt)).map(person=>person.id);
+    // Called only from the authenticated human review action, never from agent tools.
+    return this.saveNew(actor,householdId,evidence.sourceText,tasks,null,evidence.receipt,`agent:${evidence.runId}`);
+  }
+
   async recover(actor:Actor,requestId:string) {
     const request=(await this.db.query('SELECT * FROM coverage_requests WHERE id=$1',[requestId])).rows[0];
     if (!request) throw new AppError(404,'Request not found.');
